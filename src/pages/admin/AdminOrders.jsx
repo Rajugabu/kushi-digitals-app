@@ -1267,6 +1267,9 @@ KD-${shortOrderId}
 SERVICE
 ${order.service}
 
+SERVICE OPTION
+${order.size || "Not Applicable"}
+
 CURRENT STATUS
 ${getStatusLabel(order.status)}
 
@@ -1789,7 +1792,7 @@ Phone: +91 7337471733
                 </article>
 
                 <article>
-                  <span>Size</span>
+                  <span>Service Option</span>
                   <strong>
                     {selectedOrder.size ||
                       "Not Applicable"}
@@ -2249,7 +2252,7 @@ Phone: +91 7337471733
 
                   <div className="admin-order-instructions">
                     <span>
-                      Customer Instructions
+                      Service Requirements / Customer Instructions
                     </span>
 
                     <p>

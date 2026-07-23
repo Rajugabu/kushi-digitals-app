@@ -624,6 +624,9 @@ Order ID: KD-${getShortOrderId(
       order.id,
     )}
 Service: ${order.service}
+Service Option: ${
+      order.size || "Not Applicable"
+    }
 Current Status: ${getStatusLabel(
       order.status,
     )}
@@ -984,7 +987,7 @@ Please check and guide me.
                   <FileImage size={19} />
 
                   <div>
-                    <span>Size</span>
+                    <span>Service Option</span>
                     <strong>
                       {selectedOrder.size ||
                         "Not Applicable"}
@@ -1403,7 +1406,7 @@ Please check and guide me.
 
                     <div>
                       <span>
-                        Instructions / Address
+                        Service Requirements / Address
                       </span>
 
                       <p>
@@ -1625,7 +1628,7 @@ Please check and guide me.
                   <thead>
                     <tr>
                       <th>Service</th>
-                      <th>Size</th>
+                      <th>Service Option</th>
                       <th>Qty</th>
                       <th>Amount</th>
                     </tr>

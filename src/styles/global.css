@@ -2684,6 +2684,7 @@ svg {
 
 .form-field {
   display: grid;
+  min-width: 0;
   gap: 8px;
 }
 
@@ -2710,8 +2711,14 @@ svg {
 
 .form-field input,
 .form-field select {
+  min-width: 0;
   height: 51px;
   padding: 0 15px;
+}
+
+.form-field input[type="date"],
+.form-field select {
+  color-scheme: dark;
 }
 
 .form-field textarea {
@@ -3696,6 +3703,10 @@ svg {
   gap: 15px;
 }
 
+.booking-form-grid > * {
+  min-width: 0;
+}
+
 .booking-full-field {
   grid-column: span 2;
 }
@@ -3960,6 +3971,7 @@ svg {
   color: var(--text-soft);
   font-size: 0.77rem;
   text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .booking-customer-preview {

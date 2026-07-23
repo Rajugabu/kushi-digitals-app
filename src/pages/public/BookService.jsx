@@ -32,7 +32,20 @@ const initialFormData = {
   customerName: "",
   phone: "",
   service: "",
+  passportPackage: "",
+  restorationDeliveryOption: "",
+  printSize: "",
+  customPrintSize: "",
   frameSize: "",
+  customFrameSize: "",
+  albumSize: "",
+  numberOfPages: "",
+  eventType: "",
+  customEventType: "",
+  eventDate: "",
+  eventLocation: "",
+  digitalServiceRequired: "",
+  customServiceDescription: "",
   quantity: "1",
   deliveryType: "Studio Pickup",
   address: "",
@@ -70,17 +83,316 @@ const services = [
   },
 ];
 
-const frameSizes = [
-  "Not Applicable",
-  "4 × 6 Inches",
-  "5 × 7 Inches",
-  "8 × 10 Inches",
-  "10 × 12 Inches",
-  "12 × 18 Inches",
-  "16 × 20 Inches",
-  "18 × 24 Inches",
+const passportPackages = [
+  "Passport Size - 1 Sheet - 8 Photos",
+  "Passport Size & Stamp Size - 1 Sheet - 4+4 Photos",
+];
+
+const restorationDeliveryOptions = [
+  "Digital Only",
+  "Digital + Print",
+];
+
+const printSizes = [
+  "4 x 6 Inches",
+  "5 x 7 Inches",
+  "8 x 10 Inches",
+  "8 x 12 Inches",
+  "10 x 15 Inches",
+  "12 x 18 Inches",
   "Custom Size",
 ];
+
+const frameSizes = [
+  "8 x 12 Inches",
+  "10 x 15 Inches",
+  "12 x 18 Inches",
+  "Custom Size",
+];
+
+const albumSizes = [
+  "15 x 24 Inches",
+  "12 x 30 Inches",
+  "12 x 36 Inches",
+];
+
+const eventTypes = [
+  "Wedding",
+  "Engagement",
+  "Birthday",
+  "Naming Ceremony",
+  "Housewarming",
+  "Outdoor Shoot",
+  "Studio Shoot",
+  "Other",
+];
+
+const serviceSpecificFields = [
+  "passportPackage",
+  "restorationDeliveryOption",
+  "printSize",
+  "customPrintSize",
+  "frameSize",
+  "customFrameSize",
+  "albumSize",
+  "numberOfPages",
+  "eventType",
+  "customEventType",
+  "eventDate",
+  "eventLocation",
+  "digitalServiceRequired",
+  "customServiceDescription",
+];
+
+const clearServiceSpecificFields = (formState) => {
+  const nextState = { ...formState };
+
+  serviceSpecificFields.forEach((fieldName) => {
+    nextState[fieldName] = "";
+  });
+
+  return nextState;
+};
+
+const formatEventDate = (value) => {
+  if (!value) {
+    return "";
+  }
+
+  const [year, month, day] = value.split("-");
+  const date = new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+  );
+
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+};
+
+const getServiceDetailEntries = (formState) => {
+  switch (formState.service) {
+    case "Passport Photos":
+      return [
+        {
+          label: "Passport Photo Package",
+          value: formState.passportPackage,
+        },
+      ];
+
+    case "Photo Restoration":
+      return [
+        {
+          label: "Delivery Option",
+          value: formState.restorationDeliveryOption,
+        },
+        ...(formState.restorationDeliveryOption ===
+          "Digital + Print" && formState.printSize
+          ? [
+              {
+                label: "Print Size",
+                value:
+                  formState.printSize === "Custom Size"
+                    ? formState.customPrintSize.trim()
+                    : formState.printSize,
+              },
+            ]
+          : []),
+      ];
+
+    case "Premium Frames":
+      return [
+        {
+          label: "Frame Size",
+          value:
+            formState.frameSize === "Custom Size"
+              ? formState.customFrameSize.trim()
+              : formState.frameSize,
+        },
+      ];
+
+    case "Album Designing":
+      return [
+        {
+          label: "Album Size",
+          value: formState.albumSize,
+        },
+        {
+          label: "Number of Pages",
+          value: formState.numberOfPages,
+        },
+      ];
+
+    case "Photography":
+      return [
+        {
+          label: "Event Type",
+          value:
+            formState.eventType === "Other"
+              ? formState.customEventType.trim()
+              : formState.eventType,
+        },
+        {
+          label: "Event Date",
+          value: formatEventDate(formState.eventDate),
+        },
+        {
+          label: "Event Location",
+          value: formState.eventLocation.trim(),
+        },
+      ];
+
+    case "Digital Services":
+      return [
+        {
+          label: "Digital Service Required",
+          value: formState.digitalServiceRequired.trim(),
+        },
+      ];
+
+    case "Other Service":
+      return [
+        {
+          label: "Custom Service Description",
+          value: formState.customServiceDescription.trim(),
+        },
+      ];
+
+    default:
+      return [];
+  }
+};
+
+const getPrimaryOrderOption = (formState) => {
+  const details = getServiceDetailEntries(formState);
+
+  switch (formState.service) {
+    case "Photo Restoration":
+      return details
+        .map((detail) => detail.value)
+        .filter(Boolean)
+        .join(" - ");
+
+    case "Album Designing":
+      return formState.albumSize
+        ? `${formState.albumSize} - ${formState.numberOfPages} Pages`
+        : "";
+
+    case "Photography":
+      return details
+        .slice(0, 2)
+        .map((detail) => detail.value)
+        .filter(Boolean)
+        .join(" - ");
+
+    case "Digital Services":
+      return "Digital Service Request";
+
+    case "Other Service":
+      return "Custom Service Request";
+
+    default:
+      return details[0]?.value || "";
+  }
+};
+
+const getServiceValidationError = (formState) => {
+  switch (formState.service) {
+    case "Passport Photos":
+      return formState.passportPackage
+        ? ""
+        : "Please select a passport photo package.";
+
+    case "Photo Restoration":
+      if (!formState.restorationDeliveryOption) {
+        return "Please select a restoration delivery option.";
+      }
+
+      if (
+        formState.restorationDeliveryOption ===
+          "Digital + Print" &&
+        formState.printSize === "Custom Size" &&
+        !formState.customPrintSize.trim()
+      ) {
+        return "Please enter the required custom print size.";
+      }
+
+      return "";
+
+    case "Premium Frames":
+      if (!formState.frameSize) {
+        return "Please select a frame size.";
+      }
+
+      if (
+        formState.frameSize === "Custom Size" &&
+        !formState.customFrameSize.trim()
+      ) {
+        return "Please enter the required custom frame size.";
+      }
+
+      return "";
+
+    case "Album Designing": {
+      if (!formState.albumSize) {
+        return "Please select an album size.";
+      }
+
+      const numberOfPages = Number(
+        formState.numberOfPages,
+      );
+
+      if (
+        !Number.isInteger(numberOfPages) ||
+        numberOfPages < 1
+      ) {
+        return "Please enter a whole number of album pages (minimum 1).";
+      }
+
+      return "";
+    }
+
+    case "Photography":
+      if (!formState.eventType) {
+        return "Please select an event type.";
+      }
+
+      if (
+        formState.eventType === "Other" &&
+        !formState.customEventType.trim()
+      ) {
+        return "Please enter the custom event type.";
+      }
+
+      if (!formState.eventDate) {
+        return "Please select the event date.";
+      }
+
+      if (!formState.eventLocation.trim()) {
+        return "Please enter the event location.";
+      }
+
+      return "";
+
+    case "Digital Services":
+      return formState.digitalServiceRequired.trim()
+        ? ""
+        : "Please describe the digital service you need.";
+
+    case "Other Service":
+      return formState.customServiceDescription.trim()
+        ? ""
+        : "Please describe the custom service you need.";
+
+    default:
+      return "";
+  }
+};
 
 function BookService() {
   const navigate = useNavigate();
@@ -123,7 +435,7 @@ function BookService() {
     }
 
     setFormData((currentData) => ({
-      ...currentData,
+      ...clearServiceSpecificFields(currentData),
       service: matchingService.name,
     }));
   }, [searchParams]);
@@ -231,37 +543,84 @@ function BookService() {
     };
   }, [selectedFiles]);
 
-  const orderSummary = useMemo(
-    () => [
+  const orderSummary = useMemo(() => {
+    const serviceDetails =
+      getServiceDetailEntries(formData).map(
+        (detail) => ({
+          ...detail,
+          value:
+            detail.value || "Not selected",
+        }),
+      );
+
+    return [
       {
         label: "Service",
         value:
           formData.service || "Not selected",
       },
-      {
-        label: "Size",
-        value:
-          formData.frameSize || "Not selected",
-      },
+      ...serviceDetails,
       {
         label: "Quantity",
-        value: formData.quantity,
+        value: formData.quantity || "1",
       },
       {
         label: "Delivery",
         value: formData.deliveryType,
       },
-    ],
-    [formData],
-  );
+    ];
+  }, [formData]);
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
 
-    setFormData((currentData) => ({
-      ...currentData,
-      [name]: value,
-    }));
+    setFormData((currentData) => {
+      if (name === "service") {
+        return {
+          ...clearServiceSpecificFields(
+            currentData,
+          ),
+          service: value,
+        };
+      }
+
+      const nextData = {
+        ...currentData,
+        [name]: value,
+      };
+
+      if (
+        name ===
+          "restorationDeliveryOption" &&
+        value !== "Digital + Print"
+      ) {
+        nextData.printSize = "";
+        nextData.customPrintSize = "";
+      }
+
+      if (
+        name === "printSize" &&
+        value !== "Custom Size"
+      ) {
+        nextData.customPrintSize = "";
+      }
+
+      if (
+        name === "frameSize" &&
+        value !== "Custom Size"
+      ) {
+        nextData.customFrameSize = "";
+      }
+
+      if (
+        name === "eventType" &&
+        value !== "Other"
+      ) {
+        nextData.customEventType = "";
+      }
+
+      return nextData;
+    });
 
     setError("");
     setSuccessMessage("");
@@ -405,6 +764,14 @@ function BookService() {
 
     if (!formData.service) {
       setError("Please select a service.");
+      return;
+    }
+
+    const serviceValidationError =
+      getServiceValidationError(formData);
+
+    if (serviceValidationError) {
+      setError(serviceValidationError);
       return;
     }
 
@@ -575,7 +942,25 @@ function BookService() {
         });
       }
 
+      const serviceDetailEntries =
+        getServiceDetailEntries(formData).filter(
+          (detail) => detail.value,
+        );
+
+      const serviceRequirements =
+        serviceDetailEntries.length > 0
+          ? [
+              "Service Requirements:",
+              ...serviceDetailEntries.map(
+                (detail) =>
+                  `${detail.label}: ${detail.value}`,
+              ),
+            ].join("\n")
+          : null;
+
       const combinedInstructions = [
+        serviceRequirements,
+
         formData.address.trim()
           ? `Delivery Address: ${formData.address.trim()}`
           : null,
@@ -603,7 +988,7 @@ function BookService() {
           service: formData.service,
 
           size:
-            formData.frameSize ||
+            getPrimaryOrderOption(formData) ||
             "Not Applicable",
 
           quantity,
@@ -683,10 +1068,12 @@ Phone Number: ${formData.phone}
 
 ORDER DETAILS
 Required Service: ${formData.service}
-Required Size: ${
-        formData.frameSize ||
-        "Not Applicable"
-      }
+${serviceDetailEntries
+  .map(
+    (detail) =>
+      `${detail.label}: ${detail.value}`,
+  )
+  .join("\n")}
 Quantity: ${quantity}
 Delivery Type: ${
         formData.deliveryType
@@ -894,7 +1281,7 @@ Please review my order and confirm the final price and delivery details.
                   </strong>
 
                   <span>
-                    Select service, size and
+                    Select service options and
                     quantity
                   </span>
                 </div>
@@ -932,35 +1319,406 @@ Please review my order and confirm the final price and delivery details.
                   </select>
                 </div>
 
-                <div className="form-field">
-                  <label htmlFor="frameSize">
-                    Size
-                  </label>
+                {formData.service ===
+                  "Passport Photos" && (
+                  <div className="form-field booking-full-field">
+                    <label htmlFor="passportPackage">
+                      Passport Photo Package
+                    </label>
 
-                  <select
-                    id="frameSize"
-                    name="frameSize"
-                    value={
-                      formData.frameSize
-                    }
-                    onChange={
-                      handleInputChange
-                    }
-                  >
-                    <option value="">
-                      Select size
-                    </option>
-
-                    {frameSizes.map((size) => (
-                      <option
-                        key={size}
-                        value={size}
-                      >
-                        {size}
+                    <select
+                      id="passportPackage"
+                      name="passportPackage"
+                      value={
+                        formData.passportPackage
+                      }
+                      onChange={
+                        handleInputChange
+                      }
+                      required
+                    >
+                      <option value="">
+                        Choose a package
                       </option>
-                    ))}
-                  </select>
-                </div>
+
+                      {passportPackages.map(
+                        (photoPackage) => (
+                          <option
+                            key={photoPackage}
+                            value={photoPackage}
+                          >
+                            {photoPackage}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </div>
+                )}
+
+                {formData.service ===
+                  "Photo Restoration" && (
+                  <>
+                    <div className="form-field booking-full-field">
+                      <label htmlFor="restorationDeliveryOption">
+                        Delivery Option
+                      </label>
+
+                      <select
+                        id="restorationDeliveryOption"
+                        name="restorationDeliveryOption"
+                        value={
+                          formData.restorationDeliveryOption
+                        }
+                        onChange={
+                          handleInputChange
+                        }
+                        required
+                      >
+                        <option value="">
+                          Choose a delivery option
+                        </option>
+
+                        {restorationDeliveryOptions.map(
+                          (option) => (
+                            <option
+                              key={option}
+                              value={option}
+                            >
+                              {option}
+                            </option>
+                          ),
+                        )}
+                      </select>
+                    </div>
+
+                    {formData.restorationDeliveryOption ===
+                      "Digital + Print" && (
+                      <div className="form-field">
+                        <label htmlFor="printSize">
+                          Print Size (Optional)
+                        </label>
+
+                        <select
+                          id="printSize"
+                          name="printSize"
+                          value={
+                            formData.printSize
+                          }
+                          onChange={
+                            handleInputChange
+                          }
+                        >
+                          <option value="">
+                            Select print size
+                          </option>
+
+                          {printSizes.map(
+                            (size) => (
+                              <option
+                                key={size}
+                                value={size}
+                              >
+                                {size}
+                              </option>
+                            ),
+                          )}
+                        </select>
+                      </div>
+                    )}
+
+                    {formData.restorationDeliveryOption ===
+                      "Digital + Print" &&
+                      formData.printSize ===
+                        "Custom Size" && (
+                        <div className="form-field">
+                          <label htmlFor="customPrintSize">
+                            Custom Print Size
+                          </label>
+
+                          <input
+                            id="customPrintSize"
+                            name="customPrintSize"
+                            type="text"
+                            value={
+                              formData.customPrintSize
+                            }
+                            onChange={
+                              handleInputChange
+                            }
+                            placeholder="Enter required print size"
+                            required
+                          />
+                        </div>
+                      )}
+                  </>
+                )}
+
+                {formData.service ===
+                  "Premium Frames" && (
+                  <>
+                    <div className="form-field">
+                      <label htmlFor="frameSize">
+                        Frame Size
+                      </label>
+
+                      <select
+                        id="frameSize"
+                        name="frameSize"
+                        value={
+                          formData.frameSize
+                        }
+                        onChange={
+                          handleInputChange
+                        }
+                        required
+                      >
+                        <option value="">
+                          Select frame size
+                        </option>
+
+                        {frameSizes.map(
+                          (size) => (
+                            <option
+                              key={size}
+                              value={size}
+                            >
+                              {size}
+                            </option>
+                          ),
+                        )}
+                      </select>
+                    </div>
+
+                    {formData.frameSize ===
+                      "Custom Size" && (
+                      <div className="form-field">
+                        <label htmlFor="customFrameSize">
+                          Custom Frame Size
+                        </label>
+
+                        <input
+                          id="customFrameSize"
+                          name="customFrameSize"
+                          type="text"
+                          value={
+                            formData.customFrameSize
+                          }
+                          onChange={
+                            handleInputChange
+                          }
+                          placeholder="Enter width x height"
+                          required
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {formData.service ===
+                  "Album Designing" && (
+                  <>
+                    <div className="form-field">
+                      <label htmlFor="albumSize">
+                        Album Size
+                      </label>
+
+                      <select
+                        id="albumSize"
+                        name="albumSize"
+                        value={
+                          formData.albumSize
+                        }
+                        onChange={
+                          handleInputChange
+                        }
+                        required
+                      >
+                        <option value="">
+                          Select album size
+                        </option>
+
+                        {albumSizes.map(
+                          (size) => (
+                            <option
+                              key={size}
+                              value={size}
+                            >
+                              {size}
+                            </option>
+                          ),
+                        )}
+                      </select>
+                    </div>
+
+                    <div className="form-field">
+                      <label htmlFor="numberOfPages">
+                        Number of Pages
+                      </label>
+
+                      <input
+                        id="numberOfPages"
+                        name="numberOfPages"
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={
+                          formData.numberOfPages
+                        }
+                        onChange={
+                          handleInputChange
+                        }
+                        placeholder="Enter number of pages"
+                        required
+                      />
+                    </div>
+                  </>
+                )}
+
+                {formData.service ===
+                  "Photography" && (
+                  <>
+                    <div className="form-field">
+                      <label htmlFor="eventType">
+                        Event Type
+                      </label>
+
+                      <select
+                        id="eventType"
+                        name="eventType"
+                        value={
+                          formData.eventType
+                        }
+                        onChange={
+                          handleInputChange
+                        }
+                        required
+                      >
+                        <option value="">
+                          Select event type
+                        </option>
+
+                        {eventTypes.map(
+                          (eventType) => (
+                            <option
+                              key={eventType}
+                              value={eventType}
+                            >
+                              {eventType}
+                            </option>
+                          ),
+                        )}
+                      </select>
+                    </div>
+
+                    <div className="form-field">
+                      <label htmlFor="eventDate">
+                        Event Date
+                      </label>
+
+                      <input
+                        id="eventDate"
+                        name="eventDate"
+                        type="date"
+                        value={
+                          formData.eventDate
+                        }
+                        onChange={
+                          handleInputChange
+                        }
+                        required
+                      />
+                    </div>
+
+                    {formData.eventType ===
+                      "Other" && (
+                      <div className="form-field booking-full-field">
+                        <label htmlFor="customEventType">
+                          Custom Event Type
+                        </label>
+
+                        <input
+                          id="customEventType"
+                          name="customEventType"
+                          type="text"
+                          value={
+                            formData.customEventType
+                          }
+                          onChange={
+                            handleInputChange
+                          }
+                          placeholder="Enter event type"
+                          required
+                        />
+                      </div>
+                    )}
+
+                    <div className="form-field booking-full-field">
+                      <label htmlFor="eventLocation">
+                        Event Location
+                      </label>
+
+                      <input
+                        id="eventLocation"
+                        name="eventLocation"
+                        type="text"
+                        value={
+                          formData.eventLocation
+                        }
+                        onChange={
+                          handleInputChange
+                        }
+                        placeholder="Enter event location"
+                        required
+                      />
+                    </div>
+                  </>
+                )}
+
+                {formData.service ===
+                  "Digital Services" && (
+                  <div className="form-field booking-full-field">
+                    <label htmlFor="digitalServiceRequired">
+                      Digital Service Required
+                    </label>
+
+                    <textarea
+                      id="digitalServiceRequired"
+                      name="digitalServiceRequired"
+                      rows="4"
+                      value={
+                        formData.digitalServiceRequired
+                      }
+                      onChange={
+                        handleInputChange
+                      }
+                      placeholder="Describe the digital service you need"
+                      required
+                    />
+                  </div>
+                )}
+
+                {formData.service ===
+                  "Other Service" && (
+                  <div className="form-field booking-full-field">
+                    <label htmlFor="customServiceDescription">
+                      Custom Service Description
+                    </label>
+
+                    <textarea
+                      id="customServiceDescription"
+                      name="customServiceDescription"
+                      rows="4"
+                      value={
+                        formData.customServiceDescription
+                      }
+                      onChange={
+                        handleInputChange
+                      }
+                      placeholder="Describe the service you need in detail"
+                      required
+                    />
+                  </div>
+                )}
 
                 <div className="form-field">
                   <label htmlFor="quantity">
@@ -995,7 +1753,7 @@ Please review my order and confirm the final price and delivery details.
                   </strong>
 
                   <span>
-                    JPG, PNG or WEBP — up to 10 photos
+                    Optional · JPG, PNG or WEBP — up to 10 photos
                   </span>
                 </div>
               </div>
