@@ -9,6 +9,8 @@ import Gallery from "./pages/public/Gallery";
 import About from "./pages/public/About";
 import Contact from "./pages/public/Contact";
 import BookService from "./pages/public/BookService";
+import Blog from "./pages/public/Blog";
+import BlogPost from "./pages/public/BlogPost";
 import ComingSoon from "./pages/public/ComingSoon";
 import NotFound from "./pages/public/NotFound";
 import Login from "./pages/auth/Login";
@@ -27,6 +29,9 @@ import AdminOrders from "./pages/admin/AdminOrders";
 import AdminSupport from "./pages/admin/AdminSupport";
 import AdminCustomers from "./pages/admin/AdminCustomers";
 import AdminReferrals from "./pages/admin/AdminReferrals";
+import AdminBlog from "./pages/admin/AdminBlog";
+import AdminBlogEditor from "./pages/admin/AdminBlogEditor";
+import AdminBlogPreview from "./pages/admin/AdminBlogPreview";
 
 function App() {
   return (
@@ -38,6 +43,8 @@ function App() {
         <Route path="about" element={<About />} />
         <Route path="contact" element={<Contact />} />
         <Route path="book-service" element={<BookService />} />
+        <Route path="blog" element={<Blog />} />
+        <Route path="blog/:slug" element={<BlogPost />} />
         <Route path="referral" element={<ComingSoon />} />
         <Route path="privacy-policy" element={<ComingSoon />} />
         <Route path="terms" element={<ComingSoon />} />
@@ -66,6 +73,10 @@ function App() {
         <Route path="support" element={<AdminSupport />} />
         <Route path="customers" element={<AdminCustomers />} />
         <Route path="referrals" element={<AdminReferrals />} />
+        <Route path="blog" element={<AdminBlog />} />
+        <Route path="blog/new" element={<AdminBlogEditor />} />
+        <Route path="blog/:id/edit" element={<AdminBlogEditor />} />
+        <Route path="blog/:id/preview" element={<AdminBlogPreview />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   ClipboardList,
+  BookOpen,
   Headphones,
   LayoutDashboard,
   Users,
@@ -94,6 +95,15 @@ function AdminLayout() {
           <span>ADMIN MENU</span>
           <NavLink to="/admin" end className={({ isActive }) => isActive ? "active" : ""}><LayoutDashboard size={19} />Dashboard</NavLink>
           <NavLink to="/admin/orders" className={({ isActive }) => isActive ? "active" : ""}><ClipboardList size={19} />Manage Orders</NavLink>
+          <NavLink
+            to="/admin/blog"
+            className={({ isActive }) =>
+              isActive ? "active" : ""
+            }
+          >
+            <BookOpen size={19} />
+            Manage Blog
+          </NavLink>
           <NavLink
             to="/admin/support"
             className={({ isActive }) =>

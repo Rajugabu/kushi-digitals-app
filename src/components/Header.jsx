@@ -12,6 +12,7 @@ const navigationItems = [
   { name: "Home", path: "/" },
   { name: "Services", path: "/services" },
   { name: "Gallery", path: "/gallery" },
+  { name: "Blog", path: "/blog" },
   { name: "About", path: "/about" },
   { name: "Contact", path: "/contact" },
   { name: "Earn", path: "/referral" },
@@ -22,7 +23,13 @@ function Header() {
   const location = useLocation();
 
   useEffect(() => {
-    setMenuOpen(false);
+    const closeTimer = window.setTimeout(
+      () => setMenuOpen(false),
+      0,
+    );
+
+    return () =>
+      window.clearTimeout(closeTimer);
   }, [location.pathname]);
 
   useEffect(() => {

@@ -18,6 +18,7 @@ import {
   Zap,
 } from "lucide-react";
 import ServiceCard from "../../components/ServiceCard";
+import LatestBlogSection from "../../components/blog/LatestBlogSection";
 import { servicesData } from "../../config/services";
 
 
@@ -270,6 +271,8 @@ function Home() {
           </div>
         </div>
       </section>
+
+      <LatestBlogSection />
 
       <section className="section-shell process-section">
         <div className="container">
