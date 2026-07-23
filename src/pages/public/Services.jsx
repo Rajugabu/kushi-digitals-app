@@ -1,11 +1,8 @@
+import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
-import {
-  ArrowRight,
-  CheckCircle2,
-  IndianRupee,
-} from "lucide-react";
 
 import PageHero from "../../components/PageHero";
+import ServiceCard from "../../components/ServiceCard";
 import { servicesData } from "../../config/services";
 
 function Services() {
@@ -18,67 +15,29 @@ function Services() {
         description="From professional passport photos to premium frames, restoration, photography and album designing, every order receives personal attention."
       />
 
-      <section className="page-section">
-        <div className="container service-detail-grid">
-          {servicesData.map((service) => {
-            const Icon = service.icon;
+      <section className="page-section service-gallery-section">
+        <div className="container">
+          <div className="service-gallery-intro">
+            <span>Choose your service</span>
+            <h2>Premium care for every photograph and occasion</h2>
+            <p>
+              Browse our studio, print and digital services, then select
+              any card to begin with the right order options already
+              prepared.
+            </p>
+          </div>
 
-            return (
-              <article
-                className="service-detail-card"
+          <div className="premium-service-grid premium-service-grid--gallery">
+            {servicesData.map((service) => (
+              <ServiceCard
                 key={service.id}
-              >
-                <div className="service-detail-top">
-                  <div className="service-detail-icon">
-                    <Icon size={29} />
-                  </div>
-
-                  <span className="service-detail-tag">
-                    {service.tag}
-                  </span>
-                </div>
-
-                <h2>{service.title}</h2>
-
-                <p>{service.description}</p>
-
-                <div className="service-detail-price">
-                  <div>
-                    <span>{service.priceLabel}</span>
-
-                    <strong>
-                      {service.price !== "Custom Quote" && (
-                        <IndianRupee size={20} />
-                      )}
-
-                      {service.price.replace("₹", "")}
-                    </strong>
-                  </div>
-
-                  <small>
-                    Final price depends on size, quantity and requirement.
-                  </small>
-                </div>
-
-                <div className="service-benefit-list">
-                  {service.benefits.map((benefit) => (
-                    <div key={benefit}>
-                      <CheckCircle2 size={17} />
-                      <span>{benefit}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <Link
-                  to={`/book-service?service=${service.id}`}
-                  className="primary-button service-order-button"
-                >
-                  Book This Service
-                  <ArrowRight size={17} />
-                </Link>
-              </article>
-            );
-          })}
+                service={service}
+                to={`/book-service?service=${encodeURIComponent(service.name)}`}
+                actionLabel="Book Now"
+                showPrice
+              />
+            ))}
+          </div>
         </div>
       </section>
 
@@ -94,8 +53,11 @@ function Services() {
               </p>
             </div>
 
-            <Link to="/contact" className="primary-button">
-              Contact Kushi Digitals
+            <Link
+              to="/book-service?service=Other%20Service"
+              className="primary-button"
+            >
+              Request a Custom Service
               <ArrowRight size={18} />
             </Link>
           </div>

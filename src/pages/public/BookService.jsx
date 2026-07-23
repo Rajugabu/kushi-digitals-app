@@ -25,7 +25,12 @@ import {
 } from "lucide-react";
 
 import PageHero from "../../components/PageHero";
+import ServiceCard from "../../components/ServiceCard";
 import { createWhatsAppLink } from "../../config/business";
+import {
+  findService,
+  servicesData,
+} from "../../config/services";
 import { supabase } from "../../services/supabase";
 
 const initialFormData = {
@@ -51,37 +56,6 @@ const initialFormData = {
   address: "",
   notes: "",
 };
-
-const services = [
-  {
-    id: "passport-photos",
-    name: "Passport Photos",
-  },
-  {
-    id: "photo-restoration",
-    name: "Photo Restoration",
-  },
-  {
-    id: "premium-frames",
-    name: "Premium Frames",
-  },
-  {
-    id: "album-designing",
-    name: "Album Designing",
-  },
-  {
-    id: "photography",
-    name: "Photography",
-  },
-  {
-    id: "digital-services",
-    name: "Digital Services",
-  },
-  {
-    id: "other-service",
-    name: "Other Service",
-  },
-];
 
 const passportPackages = [
   "Passport Size - 1 Sheet - 8 Photos",
@@ -396,10 +370,19 @@ const getServiceValidationError = (formState) => {
 
 function BookService() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] =
+    useSearchParams();
+  const requestedServiceValue =
+    searchParams.get("service");
+  const initialService = findService(
+    requestedServiceValue,
+  );
 
   const [formData, setFormData] =
-    useState(initialFormData);
+    useState(() => ({
+      ...initialFormData,
+      service: initialService?.name || "",
+    }));
 
   const [selectedFiles, setSelectedFiles] =
     useState([]);
@@ -418,27 +401,42 @@ function BookService() {
     useState("");
 
   useEffect(() => {
-    const requestedServiceId =
-      searchParams.get("service");
-
-    if (!requestedServiceId) {
+    if (!requestedServiceValue) {
       return;
     }
 
-    const matchingService = services.find(
-      (service) =>
-        service.id === requestedServiceId,
+    const matchingService = findService(
+      requestedServiceValue,
     );
 
     if (!matchingService) {
       return;
     }
 
-    setFormData((currentData) => ({
-      ...clearServiceSpecificFields(currentData),
-      service: matchingService.name,
-    }));
-  }, [searchParams]);
+    const updateTimer = window.setTimeout(
+      () => {
+        setFormData((currentData) => {
+          if (
+            currentData.service ===
+            matchingService.name
+          ) {
+            return currentData;
+          }
+
+          return {
+            ...clearServiceSpecificFields(
+              currentData,
+            ),
+            service: matchingService.name,
+          };
+        });
+      },
+      0,
+    );
+
+    return () =>
+      window.clearTimeout(updateTimer);
+  }, [requestedServiceValue]);
 
   useEffect(() => {
     let isMounted = true;
@@ -533,10 +531,13 @@ function BookService() {
     const urls = selectedFiles.map((file) =>
       URL.createObjectURL(file),
     );
-
-    setPreviewUrls(urls);
+    const previewTimer = window.setTimeout(
+      () => setPreviewUrls(urls),
+      0,
+    );
 
     return () => {
+      window.clearTimeout(previewTimer);
       urls.forEach((url) =>
         URL.revokeObjectURL(url),
       );
@@ -574,16 +575,49 @@ function BookService() {
   const handleInputChange = (event) => {
     const { name, value } = event.target;
 
-    setFormData((currentData) => {
-      if (name === "service") {
+    if (name === "service") {
+      setFormData((currentData) => {
+        if (
+          currentData.service === value
+        ) {
+          return currentData;
+        }
+
         return {
           ...clearServiceSpecificFields(
             currentData,
           ),
           service: value,
         };
-      }
+      });
 
+      setSearchParams(
+        (currentParams) => {
+          const nextParams =
+            new URLSearchParams(
+              currentParams,
+            );
+
+          if (value) {
+            nextParams.set(
+              "service",
+              value,
+            );
+          } else {
+            nextParams.delete("service");
+          }
+
+          return nextParams;
+        },
+        { replace: true },
+      );
+
+      setError("");
+      setSuccessMessage("");
+      return;
+    }
+
+    setFormData((currentData) => {
       const nextData = {
         ...currentData,
         [name]: value,
@@ -624,6 +658,32 @@ function BookService() {
 
     setError("");
     setSuccessMessage("");
+  };
+
+  const handleServiceCardSelect = (
+    service,
+  ) => {
+    handleInputChange({
+      target: {
+        name: "service",
+        value: service.name,
+      },
+    });
+
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById(
+          "service-requirements",
+        )
+        ?.scrollIntoView({
+          behavior: window.matchMedia(
+            "(prefers-reduced-motion: reduce)",
+          ).matches
+            ? "auto"
+            : "smooth",
+          block: "nearest",
+        });
+    });
   };
 
   const handleFileChange = (event) => {
@@ -1287,10 +1347,44 @@ Please review my order and confirm the final price and delivery details.
                 </div>
               </div>
 
-              <div className="booking-form-grid">
-                <div className="form-field booking-full-field">
+              <div className="booking-service-selector">
+                <div className="booking-service-selector__heading">
+                  <strong>
+                    Choose a service
+                  </strong>
+
+                  <span>
+                    Select a card to see the
+                    options for that service.
+                  </span>
+                </div>
+
+                <div
+                  className="premium-service-grid premium-service-grid--selector"
+                  aria-label="Available services"
+                >
+                  {servicesData.map(
+                    (service) => (
+                      <ServiceCard
+                        key={service.id}
+                        service={service}
+                        selected={
+                          formData.service ===
+                          service.name
+                        }
+                        onSelect={
+                          handleServiceCardSelect
+                        }
+                        actionLabel="Select Service"
+                        compact
+                      />
+                    ),
+                  )}
+                </div>
+
+                <div className="service-selector-fallback form-field">
                   <label htmlFor="service">
-                    Required Service
+                    Compact service list
                   </label>
 
                   <select
@@ -1306,7 +1400,7 @@ Please review my order and confirm the final price and delivery details.
                       Choose a service
                     </option>
 
-                    {services.map(
+                    {servicesData.map(
                       (service) => (
                         <option
                           key={service.id}
@@ -1318,6 +1412,12 @@ Please review my order and confirm the final price and delivery details.
                     )}
                   </select>
                 </div>
+              </div>
+
+              <div
+                className="booking-form-grid"
+                id="service-requirements"
+              >
 
                 {formData.service ===
                   "Passport Photos" && (

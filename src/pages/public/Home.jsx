@@ -1,15 +1,11 @@
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
-  BookOpen,
   Camera,
   CheckCircle2,
-  Clock,
   Frame,
   Headphones,
-  IdCard,
   Image,
-  Monitor,
   Palette,
   Quote,
   Share2,
@@ -21,6 +17,7 @@ import {
   Wallet,
   Zap,
 } from "lucide-react";
+import ServiceCard from "../../components/ServiceCard";
 import { servicesData } from "../../config/services";
 
 
@@ -253,36 +250,16 @@ function Home() {
             </p>
           </div>
 
-          <div className="services-grid">
-            {servicesData.map((service) => {
-              const Icon = service.icon;
-
-              return (
-                <article className="service-card" key={service.title}>
-                  <div className="service-card-top">
-                    <div className="service-icon">
-                      <Icon size={25} />
-                    </div>
-
-                    <span className="service-tag">{service.tag}</span>
-                  </div>
-
-                  <h3>{service.title}</h3>
-
-<p>{service.shortDescription}</p>
-
-<div className="service-price">
-  <span>{service.priceLabel}</span>
-  <strong>{service.price}</strong>
-</div>
-
-<Link to="/services" className="text-link">
-  View Details
-  <ArrowRight size={17} />
-</Link>
-                </article>
-              );
-            })}
+          <div className="premium-service-grid premium-service-grid--home">
+            {servicesData.slice(0, 6).map((service) => (
+              <ServiceCard
+                key={service.id}
+                service={service}
+                to={`/book-service?service=${encodeURIComponent(service.name)}`}
+                actionLabel="Select Service"
+                compact
+              />
+            ))}
           </div>
 
           <div className="section-action">
