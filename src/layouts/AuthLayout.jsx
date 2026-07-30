@@ -26,7 +26,7 @@ function AuthLayout() {
             <span className="brand-name">Kushi Digitals</span>
 
             <span className="brand-tagline">
-              Photography & Digital Studio
+              Premium Service Studio
             </span>
           </span>
         </Link>

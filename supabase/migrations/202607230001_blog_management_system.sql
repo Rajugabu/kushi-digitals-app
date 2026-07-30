@@ -377,7 +377,7 @@ values
   ),
   (
     'Digital Services',
-    'digital-services',
+    'services',
     'Helpful information about editing, digital delivery and online services.'
   ),
   (

@@ -57,7 +57,8 @@ function ServiceCard({
         </span>
 
         <span className="premium-service-card__description">
-          {service.shortDescription}
+          {service.shortDescription ||
+            service.homeDescription}
         </span>
 
         <span className="premium-service-card__footer">

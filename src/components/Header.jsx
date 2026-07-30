@@ -12,10 +12,8 @@ const navigationItems = [
   { name: "Home", path: "/" },
   { name: "Services", path: "/services" },
   { name: "Gallery", path: "/gallery" },
-  { name: "Blog", path: "/blog" },
   { name: "About", path: "/about" },
   { name: "Contact", path: "/contact" },
-  { name: "Earn", path: "/referral" },
 ];
 
 function Header() {
@@ -53,7 +51,7 @@ function Header() {
           <span className="brand-copy">
             <span className="brand-name">Kushi Digitals</span>
             <span className="brand-tagline">
-              Photography & Digital Studio
+              Premium Service Studio
             </span>
           </span>
         </Link>

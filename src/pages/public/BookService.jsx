@@ -1,463 +1,949 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
-
 import {
+  Link,
+  useLocation,
   useNavigate,
   useSearchParams,
 } from "react-router-dom";
-
 import {
   ArrowRight,
   CheckCircle2,
   FileImage,
-  ImagePlus,
+  FileText,
+  Info,
+  LoaderCircle,
+  Mail,
   MapPin,
-  MessageCircle,
-  PackageCheck,
-  Phone,
+  Minus,
+  Plus,
   ShieldCheck,
   Trash2,
   UploadCloud,
-  UserRound,
 } from "lucide-react";
 
 import PageHero from "../../components/PageHero";
 import ServiceCard from "../../components/ServiceCard";
-import { createWhatsAppLink } from "../../config/business";
 import {
-  findService,
-  servicesData,
-} from "../../config/services";
+  approvedBookingServiceNames,
+  findBookingService,
+  getBookingServiceConfiguration,
+} from "../../config/bookingServices";
+import {
+  calculateServicePrice,
+  formatIndianCurrency,
+} from "../../config/servicePricing";
+import { servicesData } from "../../config/services";
 import { supabase } from "../../services/supabase";
 
+const bookingServices = approvedBookingServiceNames
+  .map((name) =>
+    servicesData.find((service) => service.name === name),
+  )
+  .filter(Boolean);
+
+const bookingSteps = [
+  "Choose Service",
+  "Service Options",
+  "Upload Files",
+  "Customer & Delivery",
+  "Payment Method",
+  "Review & Submit",
+];
+
+const paymentMethodLabels = {
+  razorpay: "Pay Online with Razorpay",
+  cash_on_delivery: "Cash on Delivery",
+  pay_at_studio: "Pay at Studio",
+  pay_later: "Pay Later After Confirmation",
+};
+
+const paymentEligibilityFields = new Set([
+  "photoType",
+  "background",
+  "dressRequirement",
+  "frameSize",
+  "frameMaterial",
+  "restorationType",
+  "outputPreference",
+  "printSize",
+  "panServiceType",
+  "travelType",
+  "supportServiceType",
+  "supportSize",
+  "printType",
+  "laminationType",
+  "deliveryType",
+]);
+
 const initialFormData = {
+  serviceCategory: "",
+  service: "",
   customerName: "",
   phone: "",
-  service: "",
-  passportPackage: "",
-  restorationDeliveryOption: "",
-  printSize: "",
-  customPrintSize: "",
-  frameSize: "",
-  customFrameSize: "",
-  albumSize: "",
-  numberOfPages: "",
-  eventType: "",
-  customEventType: "",
-  eventDate: "",
-  eventLocation: "",
-  digitalServiceRequired: "",
-  customServiceDescription: "",
+  email: "",
   quantity: "1",
-  deliveryType: "Studio Pickup",
-  address: "",
-  notes: "",
+  deliveryType: "",
+  instructions: "",
+  photoType: "",
+  background: "",
+  customBackground: "",
+  dressRequirement: "",
+  frameSize: "",
+  frameMaterial: "",
+  restorationType: "",
+  outputPreference: "",
+  printSize: "",
+  panServiceType: "",
+  applicantType: "",
+  travelType: "",
+  fromLocation: "",
+  toLocation: "",
+  journeyDate: "",
+  journeyType: "",
+  returnDate: "",
+  travelPreference: "",
+  supportServiceType: "",
+  supportSize: "",
+  printType: "",
+  laminationType: "",
+  houseNumber: "",
+  streetVillage: "",
+  areaMandal: "",
+  district: "",
+  state: "",
+  pincode: "",
+  landmark: "",
+  passengers: [],
+  paymentMethod: "",
 };
 
-const passportPackages = [
-  "Passport Size - 1 Sheet - 8 Photos",
-  "Passport Size & Stamp Size - 1 Sheet - 4+4 Photos",
-];
+const allowedImageTypes = new Set([
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+]);
+const allowedPdfType = "application/pdf";
+const maximumFileSize = 10 * 1024 * 1024;
+const maximumFiles = 10;
 
-const restorationDeliveryOptions = [
-  "Digital Only",
-  "Digital + Print",
-];
+function createPassenger() {
+  const uniqueId =
+    globalThis.crypto?.randomUUID?.() ||
+    `passenger-${Date.now()}-${Math.random()}`;
 
-const printSizes = [
-  "4 x 6 Inches",
-  "5 x 7 Inches",
-  "8 x 10 Inches",
-  "8 x 12 Inches",
-  "10 x 15 Inches",
-  "12 x 18 Inches",
-  "Custom Size",
-];
+  return {
+    id: uniqueId,
+    fullName: "",
+    age: "",
+    gender: "",
+    seatPreference: "",
+  };
+}
 
-const frameSizes = [
-  "8 x 12 Inches",
-  "10 x 15 Inches",
-  "12 x 18 Inches",
-  "Custom Size",
-];
-
-const albumSizes = [
-  "15 x 24 Inches",
-  "12 x 30 Inches",
-  "12 x 36 Inches",
-];
-
-const eventTypes = [
-  "Wedding",
-  "Engagement",
-  "Birthday",
-  "Naming Ceremony",
-  "Housewarming",
-  "Outdoor Shoot",
-  "Studio Shoot",
-  "Other",
-];
-
-const serviceSpecificFields = [
-  "passportPackage",
-  "restorationDeliveryOption",
-  "printSize",
-  "customPrintSize",
-  "frameSize",
-  "customFrameSize",
-  "albumSize",
-  "numberOfPages",
-  "eventType",
-  "customEventType",
-  "eventDate",
-  "eventLocation",
-  "digitalServiceRequired",
-  "customServiceDescription",
-];
-
-const clearServiceSpecificFields = (formState) => {
-  const nextState = { ...formState };
-
-  serviceSpecificFields.forEach((fieldName) => {
-    nextState[fieldName] = "";
-  });
-
-  return nextState;
-};
-
-const formatEventDate = (value) => {
-  if (!value) {
-    return "";
-  }
-
-  const [year, month, day] = value.split("-");
-  const date = new Date(
-    Number(year),
-    Number(month) - 1,
-    Number(day),
+function createUniqueFileId(fileIndex) {
+  return (
+    globalThis.crypto?.randomUUID?.() ||
+    `${Date.now()}-${fileIndex}`
   );
+}
 
-  return Number.isNaN(date.getTime())
-    ? value
-    : date.toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      });
-};
+function createServiceFormData(service, currentData = {}) {
+  const configuration =
+    getBookingServiceConfiguration(service);
 
-const getServiceDetailEntries = (formState) => {
-  switch (formState.service) {
-    case "Passport Photos":
-      return [
-        {
-          label: "Passport Photo Package",
-          value: formState.passportPackage,
-        },
-      ];
+  return {
+    ...initialFormData,
+    customerName: currentData.customerName || "",
+    phone: currentData.phone || "",
+    email: currentData.email || "",
+    houseNumber: currentData.houseNumber || "",
+    streetVillage: currentData.streetVillage || "",
+    areaMandal: currentData.areaMandal || "",
+    district: currentData.district || "",
+    state: currentData.state || "",
+    pincode: currentData.pincode || "",
+    landmark: currentData.landmark || "",
+    serviceCategory: configuration?.category || "",
+    service: service || "",
+    deliveryType:
+      configuration?.deliveryOptions?.[0] || "",
+    photoType:
+      configuration?.photoTypes?.[0] || "",
+    background:
+      configuration?.backgrounds?.[0] || "",
+    dressRequirement:
+      configuration?.dressRequirements?.[0] || "",
+    travelType:
+      configuration?.travelTypes?.[0] || "",
+    journeyType:
+      configuration?.journeyTypes?.[0] || "",
+    passengers:
+      service === "Travel Ticket Booking"
+        ? [createPassenger()]
+        : [],
+  };
+}
 
-    case "Photo Restoration":
-      return [
-        {
-          label: "Delivery Option",
-          value: formState.restorationDeliveryOption,
-        },
-        ...(formState.restorationDeliveryOption ===
-          "Digital + Print" && formState.printSize
-          ? [
-              {
-                label: "Print Size",
-                value:
-                  formState.printSize === "Custom Size"
-                    ? formState.customPrintSize.trim()
-                    : formState.printSize,
-              },
-            ]
-          : []),
-      ];
+function getShortOrderId(orderId) {
+  return orderId
+    .replace(/-/g, "")
+    .slice(0, 10)
+    .toUpperCase();
+}
 
-    case "Premium Frames":
-      return [
-        {
-          label: "Frame Size",
-          value:
-            formState.frameSize === "Custom Size"
-              ? formState.customFrameSize.trim()
-              : formState.frameSize,
-        },
-      ];
+function createSafeFileName(fileName) {
+  const extension =
+    fileName.split(".").pop()?.toLowerCase() || "jpg";
+  const baseName = fileName
+    .replace(/\.[^/.]+$/, "")
+    .replace(/[^a-zA-Z0-9-_]/g, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 70);
 
-    case "Album Designing":
-      return [
-        {
-          label: "Album Size",
-          value: formState.albumSize,
-        },
-        {
-          label: "Number of Pages",
-          value: formState.numberOfPages,
-        },
-      ];
+  return `${baseName || "order-file"}.${extension}`;
+}
 
-    case "Photography":
-      return [
-        {
-          label: "Event Type",
-          value:
-            formState.eventType === "Other"
-              ? formState.customEventType.trim()
-              : formState.eventType,
-        },
-        {
-          label: "Event Date",
-          value: formatEventDate(formState.eventDate),
-        },
-        {
-          label: "Event Location",
-          value: formState.eventLocation.trim(),
-        },
-      ];
+function formatAddress(formData) {
+  return [
+    formData.houseNumber,
+    formData.streetVillage,
+    formData.areaMandal,
+    formData.district,
+    formData.state,
+    formData.pincode,
+    formData.landmark
+      ? `Landmark: ${formData.landmark}`
+      : null,
+  ]
+    .map((value) => value?.trim())
+    .filter(Boolean)
+    .join(", ");
+}
 
-    case "Digital Services":
-      return [
-        {
-          label: "Digital Service Required",
-          value: formState.digitalServiceRequired.trim(),
-        },
-      ];
-
-    case "Other Service":
-      return [
-        {
-          label: "Custom Service Description",
-          value: formState.customServiceDescription.trim(),
-        },
-      ];
-
-    default:
-      return [];
+function getDatabaseSize(formData) {
+  if (formData.service === "Photo Frames") {
+    return formData.frameSize || "Not Applicable";
   }
-};
 
-const getPrimaryOrderOption = (formState) => {
-  const details = getServiceDetailEntries(formState);
-
-  switch (formState.service) {
-    case "Photo Restoration":
-      return details
-        .map((detail) => detail.value)
-        .filter(Boolean)
-        .join(" - ");
-
-    case "Album Designing":
-      return formState.albumSize
-        ? `${formState.albumSize} - ${formState.numberOfPages} Pages`
-        : "";
-
-    case "Photography":
-      return details
-        .slice(0, 2)
-        .map((detail) => detail.value)
-        .filter(Boolean)
-        .join(" - ");
-
-    case "Digital Services":
-      return "Digital Service Request";
-
-    case "Other Service":
-      return "Custom Service Request";
-
-    default:
-      return details[0]?.value || "";
+  if (formData.service === "Photo Restoration") {
+    return formData.printSize || "Not Applicable";
   }
-};
 
-const getServiceValidationError = (formState) => {
-  switch (formState.service) {
-    case "Passport Photos":
-      return formState.passportPackage
-        ? ""
-        : "Please select a passport photo package.";
+  if (formData.service === "Passport Size Photos") {
+    return formData.photoType || "Not Applicable";
+  }
 
-    case "Photo Restoration":
-      if (!formState.restorationDeliveryOption) {
-        return "Please select a restoration delivery option.";
-      }
+  if (
+    formData.service ===
+    "Laminations & Print Support"
+  ) {
+    return formData.supportSize || "Not Applicable";
+  }
 
-      if (
-        formState.restorationDeliveryOption ===
-          "Digital + Print" &&
-        formState.printSize === "Custom Size" &&
-        !formState.customPrintSize.trim()
-      ) {
-        return "Please enter the required custom print size.";
-      }
+  return "Not Applicable";
+}
 
-      return "";
+function buildStructuredInstructions(formData) {
+  const lines = [
+    `Service: ${formData.service}`,
+  ];
 
-    case "Premium Frames":
-      if (!formState.frameSize) {
-        return "Please select a frame size.";
-      }
+  if (formData.service === "Passport Size Photos") {
+    lines.push(
+      `Photo Pack: ${formData.photoType}`,
+      `Background: ${
+        formData.background === "Custom Background"
+          ? formData.customBackground
+          : formData.background
+      }`,
+      `Dress Requirement: ${formData.dressRequirement}`,
+      `Number of Sets: ${formData.quantity}`,
+    );
+  }
 
-      if (
-        formState.frameSize === "Custom Size" &&
-        !formState.customFrameSize.trim()
-      ) {
-        return "Please enter the required custom frame size.";
-      }
+  if (formData.service === "Photo Frames") {
+    lines.push(
+      `Frame Size: ${formData.frameSize}`,
+      `Frame Material: ${formData.frameMaterial}`,
+      `Quantity: ${formData.quantity}`,
+    );
+  }
 
-      return "";
+  if (formData.service === "Photo Restoration") {
+    lines.push(
+      `Restoration Requirement: ${formData.restorationType}`,
+      `Output Preference: ${formData.outputPreference}`,
+    );
 
-    case "Album Designing": {
-      if (!formState.albumSize) {
-        return "Please select an album size.";
-      }
-
-      const numberOfPages = Number(
-        formState.numberOfPages,
-      );
-
-      if (
-        !Number.isInteger(numberOfPages) ||
-        numberOfPages < 1
-      ) {
-        return "Please enter a whole number of album pages (minimum 1).";
-      }
-
-      return "";
+    if (formData.printSize) {
+      lines.push(`Print Size: ${formData.printSize}`);
     }
 
-    case "Photography":
-      if (!formState.eventType) {
-        return "Please select an event type.";
-      }
-
-      if (
-        formState.eventType === "Other" &&
-        !formState.customEventType.trim()
-      ) {
-        return "Please enter the custom event type.";
-      }
-
-      if (!formState.eventDate) {
-        return "Please select the event date.";
-      }
-
-      if (!formState.eventLocation.trim()) {
-        return "Please enter the event location.";
-      }
-
-      return "";
-
-    case "Digital Services":
-      return formState.digitalServiceRequired.trim()
-        ? ""
-        : "Please describe the digital service you need.";
-
-    case "Other Service":
-      return formState.customServiceDescription.trim()
-        ? ""
-        : "Please describe the custom service you need.";
-
-    default:
-      return "";
+    lines.push(`Quantity: ${formData.quantity}`);
   }
-};
+
+  if (formData.service === "PAN Card Services") {
+    lines.push(
+      `PAN Service Type: ${formData.panServiceType}`,
+      `Applicant Type: ${formData.applicantType}`,
+    );
+  }
+
+  if (formData.service === "Travel Ticket Booking") {
+    lines.push(
+      `Travel Type: ${formData.travelType}`,
+      `From: ${formData.fromLocation}`,
+      `To: ${formData.toLocation}`,
+      `Journey Date: ${formData.journeyDate}`,
+      `Return Journey: ${formData.journeyType}`,
+    );
+
+    if (formData.returnDate) {
+      lines.push(`Return Date: ${formData.returnDate}`);
+    }
+
+    lines.push(
+      `Travel Class / Preference: ${formData.travelPreference}`,
+      `Number of Passengers: ${formData.passengers.length}`,
+    );
+
+    formData.passengers.forEach((passenger, index) => {
+      lines.push(
+        `Passenger ${index + 1}: ${passenger.fullName} | Age ${passenger.age} | ${passenger.gender}${
+          passenger.seatPreference
+            ? ` | Preference: ${passenger.seatPreference}`
+            : ""
+        }`,
+      );
+    });
+  }
+
+  if (
+    formData.service ===
+    "Laminations & Print Support"
+  ) {
+    lines.push(
+      `Service Type: ${formData.supportServiceType}`,
+      `Size: ${formData.supportSize}`,
+    );
+
+    if (formData.printType) {
+      lines.push(`Print Type: ${formData.printType}`);
+    }
+
+    if (formData.laminationType) {
+      lines.push(
+        `Lamination Type: ${formData.laminationType}`,
+      );
+    }
+
+    lines.push(`Quantity: ${formData.quantity}`);
+  }
+
+  lines.push(`Delivery Type: ${formData.deliveryType}`);
+
+  if (formData.deliveryType === "Home Delivery") {
+    lines.push(
+      `Delivery Address: ${formatAddress(formData)}`,
+    );
+  }
+
+  if (formData.instructions.trim()) {
+    lines.push(
+      `Customer Notes: ${formData.instructions.trim()}`,
+    );
+  }
+
+  return lines.join("\n");
+}
+
+function buildReviewItems(
+  formData,
+  uploadedFileCount,
+) {
+  if (!formData.service) {
+    return [
+      {
+        label: "Service",
+        value: "Select one of the six services",
+      },
+    ];
+  }
+
+  const items = [
+    {
+      label: "Service",
+      value: formData.service,
+    },
+  ];
+
+  const addItem = (label, value) => {
+    if (value) {
+      items.push({ label, value });
+    }
+  };
+
+  if (formData.service === "Passport Size Photos") {
+    addItem("Photo Pack", formData.photoType);
+    addItem(
+      "Background",
+      formData.background === "Custom Background"
+        ? formData.customBackground
+        : formData.background,
+    );
+    addItem("Dress", formData.dressRequirement);
+    addItem("Number of Sets", formData.quantity);
+  }
+
+  if (formData.service === "Photo Frames") {
+    addItem("Size", formData.frameSize);
+    addItem("Material", formData.frameMaterial);
+    addItem("Quantity", formData.quantity);
+  }
+
+  if (formData.service === "Photo Restoration") {
+    addItem(
+      "Restoration Requirement",
+      formData.restorationType,
+    );
+    addItem("Output", formData.outputPreference);
+    addItem("Print Size", formData.printSize);
+    addItem("Quantity", formData.quantity);
+  }
+
+  if (formData.service === "PAN Card Services") {
+    addItem("PAN Service", formData.panServiceType);
+    addItem("Applicant", formData.applicantType);
+  }
+
+  if (formData.service === "Travel Ticket Booking") {
+    addItem("Travel Type", formData.travelType);
+    addItem(
+      "Route",
+      formData.fromLocation && formData.toLocation
+        ? `${formData.fromLocation} → ${formData.toLocation}`
+        : "",
+    );
+    addItem("Journey Date", formData.journeyDate);
+    addItem("Return Journey", formData.journeyType);
+    addItem("Return Date", formData.returnDate);
+    addItem("Preference", formData.travelPreference);
+    addItem(
+      "Passengers",
+      String(formData.passengers.length),
+    );
+  }
+
+  if (
+    formData.service ===
+    "Laminations & Print Support"
+  ) {
+    addItem(
+      "Service Type",
+      formData.supportServiceType,
+    );
+    addItem("Size", formData.supportSize);
+    addItem("Print Type", formData.printType);
+    addItem(
+      "Lamination Type",
+      formData.laminationType,
+    );
+    addItem("Quantity", formData.quantity);
+  }
+
+  addItem("Uploaded Files", String(uploadedFileCount));
+  addItem("Delivery", formData.deliveryType);
+  addItem("Customer", formData.customerName);
+  addItem("Phone", formData.phone);
+  addItem("Email", formData.email.trim());
+  addItem(
+    "Payment Method",
+    paymentMethodLabels[formData.paymentMethod],
+  );
+
+  return items;
+}
+
+function getAvailablePaymentMethods(
+  formData,
+  priceInformation,
+) {
+  if (!priceInformation.isComplete) {
+    return [];
+  }
+
+  if (priceInformation.requiresManualConfirmation) {
+    return [
+      {
+        value: "pay_later",
+        label: paymentMethodLabels.pay_later,
+        description:
+          "Pay after Kushi Digitals confirms the final requirement.",
+      },
+    ];
+  }
+
+  const methods = [];
+  const hasPayableAmount =
+    priceInformation.isComplete &&
+    !priceInformation.requiresManualConfirmation &&
+    Number.isFinite(priceInformation.total) &&
+    priceInformation.total > 0;
+
+  if (hasPayableAmount) {
+    methods.push({
+      value: "razorpay",
+      label: paymentMethodLabels.razorpay,
+      description:
+        "Secure online payment for the calculated amount.",
+    });
+  }
+
+  const isPrintedRestoration =
+    formData.service === "Photo Restoration" &&
+    ["Printed Photo", "Digital + Printed"].includes(
+      formData.outputPreference,
+    );
+  const supportsCashOnDelivery =
+    formData.deliveryType === "Home Delivery" &&
+    [
+      "Passport Size Photos",
+      "Photo Frames",
+      "Laminations & Print Support",
+    ].includes(formData.service);
+
+  if (
+    supportsCashOnDelivery ||
+    (formData.deliveryType === "Home Delivery" &&
+      isPrintedRestoration)
+  ) {
+    methods.push({
+      value: "cash_on_delivery",
+      label: paymentMethodLabels.cash_on_delivery,
+      description:
+        "Pay when your physical order is delivered.",
+    });
+  }
+
+  if (formData.deliveryType === "Studio Pickup") {
+    methods.push({
+      value: "pay_at_studio",
+      label: paymentMethodLabels.pay_at_studio,
+      description:
+        "Pay when you collect the completed order.",
+    });
+  }
+
+  if (
+    formData.service === "Travel Ticket Booking"
+  ) {
+    methods.push({
+      value: "pay_later",
+      label: paymentMethodLabels.pay_later,
+      description:
+        "Pay after Kushi Digitals confirms the final requirement.",
+    });
+  }
+
+  return methods;
+}
+
+let razorpayScriptPromise;
+
+function loadRazorpayCheckout() {
+  if (window.Razorpay) {
+    return Promise.resolve();
+  }
+
+  if (!razorpayScriptPromise) {
+    razorpayScriptPromise = new Promise(
+      (resolve, reject) => {
+        const existingScript = document.querySelector(
+          'script[src="https://checkout.razorpay.com/v1/checkout.js"]',
+        );
+        const script =
+          existingScript ||
+          document.createElement("script");
+
+        script.addEventListener("load", resolve, {
+          once: true,
+        });
+        script.addEventListener(
+          "error",
+          () => {
+            razorpayScriptPromise = undefined;
+            reject(
+              new Error(
+                "Secure payment could not be loaded. Your order is saved and remains unpaid.",
+              ),
+            );
+          },
+          { once: true },
+        );
+
+        if (!existingScript) {
+          script.src =
+            "https://checkout.razorpay.com/v1/checkout.js";
+          script.async = true;
+          document.head.appendChild(script);
+        }
+      },
+    );
+  }
+
+  return razorpayScriptPromise;
+}
+
+function openRazorpayCheckout({
+  checkoutData,
+  customer,
+  service,
+}) {
+  return new Promise((resolve, reject) => {
+    let isSettled = false;
+    const settle = (callback, value) => {
+      if (!isSettled) {
+        isSettled = true;
+        callback(value);
+      }
+    };
+    const prefill = {
+      name: customer.name,
+      contact: customer.phone,
+    };
+
+    if (customer.email) {
+      prefill.email = customer.email;
+    }
+
+    const checkout = new window.Razorpay({
+      key: checkoutData.keyId,
+      amount: checkoutData.amount,
+      currency: checkoutData.currency,
+      name: "Kushi Digitals",
+      description: service,
+      order_id: checkoutData.razorpayOrderId,
+      prefill,
+      theme: {
+        color: "#8b5cf6",
+      },
+      handler: (response) =>
+        settle(resolve, response),
+      modal: {
+        ondismiss: () =>
+          settle(
+            reject,
+            new Error(
+              "Payment was cancelled. Your order is saved and remains unpaid.",
+            ),
+          ),
+      },
+    });
+
+    checkout.on("payment.failed", () =>
+      settle(
+        reject,
+        new Error(
+          "Payment was not completed. Your order is saved and remains unpaid.",
+        ),
+      ),
+    );
+    checkout.open();
+  });
+}
+
+function StepHeading({ number, title, description }) {
+  return (
+    <div className="booking-section-title">
+      <span className="booking-step-number">{number}</span>
+      <div>
+        <strong>{title}</strong>
+        <span>{description}</span>
+      </div>
+    </div>
+  );
+}
+
+function SelectField({
+  label,
+  name,
+  value,
+  options,
+  onChange,
+  error,
+  placeholder = "Choose an option",
+  className = "",
+}) {
+  return (
+    <div className={`form-field ${className}`}>
+      <label htmlFor={name}>{label}</label>
+      <select
+        id={name}
+        name={name}
+        value={value}
+        onChange={onChange}
+        aria-invalid={Boolean(error)}
+      >
+        <option value="">{placeholder}</option>
+        {options.map((option) => (
+          <option value={option} key={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+      {error && (
+        <small className="form-field-error">{error}</small>
+      )}
+    </div>
+  );
+}
+
+function LivePrice({
+  priceInformation,
+  detail = "",
+  className = "",
+}) {
+  const hasCalculatedTotal =
+    priceInformation.isComplete &&
+    !priceInformation.requiresManualConfirmation &&
+    Number.isFinite(priceInformation.total) &&
+    priceInformation.total > 0;
+  let displayValue = "Select options to view price";
+
+  if (hasCalculatedTotal) {
+    displayValue = formatIndianCurrency(
+      priceInformation.total,
+    );
+  } else if (
+    priceInformation.requiresManualConfirmation
+  ) {
+    displayValue = "Price confirmation required";
+  } else if (
+    priceInformation.status ===
+    "Upload photos to calculate the restoration total."
+  ) {
+    displayValue = priceInformation.status;
+  }
+
+  return (
+    <div
+      className={`booking-live-price ${className}`}
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      <span>Live Price</span>
+      <strong
+        className={
+          hasCalculatedTotal ? "" : "is-message"
+        }
+      >
+        {displayValue}
+      </strong>
+      {hasCalculatedTotal && detail && (
+        <small>{detail}</small>
+      )}
+    </div>
+  );
+}
+
+function QuantityControl({
+  label,
+  value,
+  onDecrease,
+  onIncrease,
+  onChange,
+  error,
+  priceInformation,
+  priceDetail = "",
+}) {
+  return (
+    <div className="booking-quantity-price-row booking-full-field">
+      <div className="form-field">
+        <label htmlFor="quantity">{label}</label>
+        <div className="booking-quantity-control">
+          <button
+            type="button"
+            onClick={onDecrease}
+            aria-label={`Decrease ${label.toLowerCase()}`}
+          >
+            <Minus size={17} />
+          </button>
+          <input
+            id="quantity"
+            name="quantity"
+            type="number"
+            min="1"
+            max="100"
+            step="1"
+            value={value}
+            onChange={onChange}
+            aria-invalid={Boolean(error)}
+          />
+          <button
+            type="button"
+            onClick={onIncrease}
+            aria-label={`Increase ${label.toLowerCase()}`}
+          >
+            <Plus size={17} />
+          </button>
+        </div>
+        {error && (
+          <small className="form-field-error">
+            {error}
+          </small>
+        )}
+      </div>
+      <LivePrice
+        priceInformation={priceInformation}
+        detail={priceDetail}
+      />
+    </div>
+  );
+}
 
 function BookService() {
+  const location = useLocation();
   const navigate = useNavigate();
+  const initialLoginReturnPath = useRef(
+    location.pathname + location.search,
+  );
   const [searchParams, setSearchParams] =
     useSearchParams();
-  const requestedServiceValue =
-    searchParams.get("service");
-  const initialService = findService(
-    requestedServiceValue,
+
+  const requestedService = useMemo(
+    () =>
+      findBookingService(
+        searchParams.get("service"),
+      ),
+    [searchParams],
   );
 
-  const [formData, setFormData] =
-    useState(() => ({
-      ...initialFormData,
-      service: initialService?.name || "",
-    }));
-
+  const [formData, setFormData] = useState(() =>
+    createServiceFormData(
+      requestedService?.service || "",
+    ),
+  );
   const [selectedFiles, setSelectedFiles] =
     useState([]);
-
   const [previewUrls, setPreviewUrls] =
     useState([]);
-
-  const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] =
-    useState("");
-
+  const previewUrlsRef = useRef([]);
+  const [fieldErrors, setFieldErrors] =
+    useState({});
+  const [formError, setFormError] = useState("");
+  const [isAuthChecking, setIsAuthChecking] =
+    useState(true);
   const [isSubmitting, setIsSubmitting] =
     useState(false);
-
+  const [submissionStage, setSubmissionStage] =
+    useState("");
+  const [currentUser, setCurrentUser] =
+    useState(null);
   const [savedProfileAddress, setSavedProfileAddress] =
     useState("");
+  const [savedOrder, setSavedOrder] =
+    useState(null);
 
-  useEffect(() => {
-    if (!requestedServiceValue) {
-      return;
+  const selectedServiceConfiguration = useMemo(
+    () =>
+      getBookingServiceConfiguration(
+        formData.service,
+      ),
+    [formData.service],
+  );
+
+  const availableDeliveryTypes = useMemo(() => {
+    const configuredOptions =
+      selectedServiceConfiguration?.deliveryOptions ||
+      [];
+
+    if (
+      formData.service === "Photo Restoration" &&
+      ![
+        "Printed Photo",
+        "Digital + Printed",
+      ].includes(formData.outputPreference)
+    ) {
+      return configuredOptions.filter(
+        (option) => option !== "Home Delivery",
+      );
     }
 
-    const matchingService = findService(
-      requestedServiceValue,
-    );
+    return configuredOptions;
+  }, [
+    formData.outputPreference,
+    formData.service,
+    selectedServiceConfiguration,
+  ]);
 
-    if (!matchingService) {
-      return;
-    }
-
-    const updateTimer = window.setTimeout(
-      () => {
-        setFormData((currentData) => {
-          if (
-            currentData.service ===
-            matchingService.name
-          ) {
-            return currentData;
-          }
-
-          return {
-            ...clearServiceSpecificFields(
-              currentData,
-            ),
-            service: matchingService.name,
-          };
-        });
-      },
-      0,
-    );
-
-    return () =>
-      window.clearTimeout(updateTimer);
-  }, [requestedServiceValue]);
+  const requiresUpload =
+    Boolean(selectedServiceConfiguration?.requiresPhoto) ||
+    (Boolean(
+      selectedServiceConfiguration
+        ?.requiresPhotoForOnline,
+    ) &&
+      formData.deliveryType === "Online Delivery");
+  const acceptsPdf =
+    Boolean(selectedServiceConfiguration?.acceptsPdf);
+  const acceptedFileTypes = acceptsPdf
+    ? ".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
+    : ".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp";
+  const priceInformation = useMemo(
+    () =>
+      calculateServicePrice(
+        formData,
+        selectedFiles.length,
+      ),
+    [formData, selectedFiles.length],
+  );
+  const availablePaymentMethods = useMemo(
+    () =>
+      getAvailablePaymentMethods(
+        formData,
+        priceInformation,
+      ),
+    [formData, priceInformation],
+  );
+  const orderSummary = useMemo(
+    () =>
+      buildReviewItems(
+        formData,
+        selectedFiles.length,
+      ),
+    [formData, selectedFiles.length],
+  );
 
   useEffect(() => {
     let isMounted = true;
 
-    const loadCustomerDetails = async () => {
+    async function loadCustomer() {
       const {
         data: { user },
         error: userError,
       } = await supabase.auth.getUser();
 
-      if (userError) {
-        console.error(
-          "Unable to load signed-in customer:",
-          userError,
-        );
+      if (!isMounted) {
         return;
       }
 
-      if (!isMounted || !user) {
+      if (userError || !user) {
+        navigate("/login", {
+          replace: true,
+          state: {
+            from: initialLoginReturnPath.current,
+          },
+        });
         return;
       }
+
+      setCurrentUser(user);
 
       const {
         data: profile,
@@ -465,16 +951,7 @@ function BookService() {
       } = await supabase
         .from("profiles")
         .select(
-          `
-            full_name,
-            phone,
-            whatsapp_number,
-            address_line,
-            city,
-            district,
-            state,
-            postal_code
-          `,
+          "full_name, phone, whatsapp_number, address_line, city, district, state, postal_code",
         )
         .eq("id", user.id)
         .maybeSingle();
@@ -482,8 +959,12 @@ function BookService() {
       if (profileError) {
         console.error(
           "Unable to load customer profile:",
-          profileError,
+          profileError.message,
         );
+      }
+
+      if (!isMounted) {
+        return;
       }
 
       const savedAddress = [
@@ -497,125 +978,114 @@ function BookService() {
         .join(", ");
 
       setSavedProfileAddress(savedAddress);
-
       setFormData((currentData) => ({
         ...currentData,
-
         customerName:
           currentData.customerName ||
           profile?.full_name ||
           user.user_metadata?.full_name ||
+          user.user_metadata?.name ||
           "",
-
         phone:
           currentData.phone ||
           profile?.phone ||
           profile?.whatsapp_number ||
           user.user_metadata?.phone ||
           "",
-
-        address:
-          currentData.address ||
-          savedAddress,
+        email: currentData.email || user.email || "",
+        houseNumber:
+          currentData.houseNumber ||
+          profile?.address_line ||
+          "",
+        streetVillage:
+          currentData.streetVillage ||
+          profile?.city ||
+          "",
+        district:
+          currentData.district ||
+          profile?.district ||
+          "",
+        state:
+          currentData.state ||
+          profile?.state ||
+          "",
+        pincode:
+          currentData.pincode ||
+          profile?.postal_code ||
+          "",
       }));
-    };
+      setIsAuthChecking(false);
+    }
 
-    loadCustomerDetails();
+    loadCustomer();
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [navigate]);
 
-  useEffect(() => {
-    const urls = selectedFiles.map((file) =>
-      URL.createObjectURL(file),
+  useEffect(
+    () => () => {
+      previewUrlsRef.current
+        .filter(Boolean)
+        .forEach((url) =>
+          URL.revokeObjectURL(url),
+        );
+    },
+    [],
+  );
+
+  function clearFieldError(name) {
+    setFieldErrors((currentErrors) => {
+      if (!currentErrors[name]) {
+        return currentErrors;
+      }
+
+      const nextErrors = {
+        ...currentErrors,
+      };
+      delete nextErrors[name];
+      return nextErrors;
+    });
+  }
+
+  function replaceSelectedFiles(nextFiles) {
+    previewUrlsRef.current
+      .filter(Boolean)
+      .forEach((url) => URL.revokeObjectURL(url));
+    const nextPreviewUrls = nextFiles.map((file) =>
+      file.type.startsWith("image/")
+        ? URL.createObjectURL(file)
+        : null,
     );
-    const previewTimer = window.setTimeout(
-      () => setPreviewUrls(urls),
-      0,
+
+    previewUrlsRef.current = nextPreviewUrls;
+    setSelectedFiles(nextFiles);
+    setPreviewUrls(nextPreviewUrls);
+  }
+
+  function clearSelectedFiles() {
+    replaceSelectedFiles([]);
+  }
+
+  function handleServiceSelect(service) {
+    setFormData((currentData) =>
+      createServiceFormData(
+        service.name,
+        currentData,
+      ),
     );
+    clearSelectedFiles();
+    setFieldErrors({});
+    setFormError("");
+    setSearchParams(
+      { service: service.name },
+      { replace: true },
+    );
+  }
 
-    return () => {
-      window.clearTimeout(previewTimer);
-      urls.forEach((url) =>
-        URL.revokeObjectURL(url),
-      );
-    };
-  }, [selectedFiles]);
-
-  const orderSummary = useMemo(() => {
-    const serviceDetails =
-      getServiceDetailEntries(formData).map(
-        (detail) => ({
-          ...detail,
-          value:
-            detail.value || "Not selected",
-        }),
-      );
-
-    return [
-      {
-        label: "Service",
-        value:
-          formData.service || "Not selected",
-      },
-      ...serviceDetails,
-      {
-        label: "Quantity",
-        value: formData.quantity || "1",
-      },
-      {
-        label: "Delivery",
-        value: formData.deliveryType,
-      },
-    ];
-  }, [formData]);
-
-  const handleInputChange = (event) => {
+  function handleInputChange(event) {
     const { name, value } = event.target;
-
-    if (name === "service") {
-      setFormData((currentData) => {
-        if (
-          currentData.service === value
-        ) {
-          return currentData;
-        }
-
-        return {
-          ...clearServiceSpecificFields(
-            currentData,
-          ),
-          service: value,
-        };
-      });
-
-      setSearchParams(
-        (currentParams) => {
-          const nextParams =
-            new URLSearchParams(
-              currentParams,
-            );
-
-          if (value) {
-            nextParams.set(
-              "service",
-              value,
-            );
-          } else {
-            nextParams.delete("service");
-          }
-
-          return nextParams;
-        },
-        { replace: true },
-      );
-
-      setError("");
-      setSuccessMessage("");
-      return;
-    }
 
     setFormData((currentData) => {
       const nextData = {
@@ -624,147 +1094,196 @@ function BookService() {
       };
 
       if (
-        name ===
-          "restorationDeliveryOption" &&
-        value !== "Digital + Print"
+        name === "background" &&
+        value !== "Custom Background"
       ) {
-        nextData.printSize = "";
-        nextData.customPrintSize = "";
+        nextData.customBackground = "";
+      }
+
+      if (name === "outputPreference") {
+        if (value === "Digital File") {
+          nextData.printSize = "";
+
+          if (
+            currentData.deliveryType ===
+            "Home Delivery"
+          ) {
+            nextData.deliveryType =
+              "Online Delivery";
+          }
+        }
+      }
+
+      if (name === "travelType") {
+        nextData.travelPreference = "";
       }
 
       if (
-        name === "printSize" &&
-        value !== "Custom Size"
+        name === "journeyType" &&
+        value !== "Round Trip"
       ) {
-        nextData.customPrintSize = "";
+        nextData.returnDate = "";
       }
 
-      if (
-        name === "frameSize" &&
-        value !== "Custom Size"
-      ) {
-        nextData.customFrameSize = "";
+      if (name === "supportServiceType") {
+        const isPrintService = [
+          "Document Print",
+          "Xerox",
+        ].includes(value);
+        const isLaminationService = [
+          "Document Lamination",
+          "ID Card Lamination",
+        ].includes(value);
+
+        if (!isPrintService) {
+          nextData.printType = "";
+        }
+
+        if (!isLaminationService) {
+          nextData.laminationType = "";
+        }
       }
 
-      if (
-        name === "eventType" &&
-        value !== "Other"
-      ) {
-        nextData.customEventType = "";
+      if (paymentEligibilityFields.has(name)) {
+        nextData.paymentMethod = "";
       }
 
       return nextData;
     });
+    clearFieldError(name);
+    setFormError("");
+  }
 
-    setError("");
-    setSuccessMessage("");
-  };
+  function updateQuantity(nextQuantity) {
+    const quantity = Math.min(
+      100,
+      Math.max(
+        1,
+        Number.parseInt(nextQuantity, 10) || 1,
+      ),
+    );
 
-  const handleServiceCardSelect = (
-    service,
-  ) => {
-    handleInputChange({
-      target: {
-        name: "service",
-        value: service.name,
-      },
+    setFormData((currentData) => ({
+      ...currentData,
+      quantity: String(quantity),
+    }));
+    clearFieldError("quantity");
+  }
+
+  function updatePassengerCount(nextCount) {
+    const passengerCount = Math.min(
+      100,
+      Math.max(
+        1,
+        Number.parseInt(nextCount, 10) || 1,
+      ),
+    );
+
+    setFormData((currentData) => {
+      const passengers = [
+        ...currentData.passengers,
+      ];
+
+      while (passengers.length < passengerCount) {
+        passengers.push(createPassenger());
+      }
+
+      return {
+        ...currentData,
+        quantity: String(passengerCount),
+        passengers: passengers.slice(
+          0,
+          passengerCount,
+        ),
+      };
     });
+    clearFieldError("quantity");
+  }
 
-    window.requestAnimationFrame(() => {
-      document
-        .getElementById(
-          "service-requirements",
-        )
-        ?.scrollIntoView({
-          behavior: window.matchMedia(
-            "(prefers-reduced-motion: reduce)",
-          ).matches
-            ? "auto"
-            : "smooth",
-          block: "nearest",
-        });
+  function handlePassengerChange(
+    passengerId,
+    field,
+    value,
+  ) {
+    setFormData((currentData) => ({
+      ...currentData,
+      passengers: currentData.passengers.map(
+        (passenger) =>
+          passenger.id === passengerId
+            ? {
+                ...passenger,
+                [field]: value,
+              }
+            : passenger,
+      ),
+    }));
+    clearFieldError(`${passengerId}-${field}`);
+  }
+
+  function removePassenger(passengerId) {
+    setFormData((currentData) => {
+      if (currentData.passengers.length === 1) {
+        return currentData;
+      }
+
+      const passengers =
+        currentData.passengers.filter(
+          (passenger) =>
+            passenger.id !== passengerId,
+        );
+
+      return {
+        ...currentData,
+        passengers,
+        quantity: String(passengers.length),
+      };
     });
-  };
+  }
 
-  const handleFileChange = (event) => {
+  function handleFileChange(event) {
     const incomingFiles = Array.from(
       event.target.files || [],
     );
+    event.target.value = "";
 
-    if (incomingFiles.length === 0) {
+    if (!incomingFiles.length) {
       return;
     }
 
-    const allowedTypes = [
-      "image/jpeg",
-      "image/jpg",
-      "image/png",
-      "image/webp",
-    ];
-
-    const maximumFileSize =
-      10 * 1024 * 1024;
-
-    const maximumFiles = 10;
-    const maximumTotalSize =
-      50 * 1024 * 1024;
-
-    const combinedFiles = [
-      ...selectedFiles,
-      ...incomingFiles,
-    ];
-
-    if (combinedFiles.length > maximumFiles) {
-      setError(
-        `You can upload a maximum of ${maximumFiles} photos per order.`,
-      );
-      event.target.value = "";
-      return;
-    }
-
-    const invalidTypeFile =
-      incomingFiles.find(
-        (file) =>
-          !allowedTypes.includes(file.type),
-      );
-
-    if (invalidTypeFile) {
-      setError(
-        `${invalidTypeFile.name}: Please upload JPG, JPEG, PNG or WEBP images only.`,
-      );
-      event.target.value = "";
-      return;
-    }
-
-    const oversizedFile =
-      incomingFiles.find(
-        (file) =>
-          file.size > maximumFileSize,
-      );
-
-    if (oversizedFile) {
-      setError(
-        `${oversizedFile.name}: Each photo must be below 10 MB.`,
-      );
-      event.target.value = "";
-      return;
-    }
-
-    const totalSize = combinedFiles.reduce(
-      (total, file) =>
-        total + file.size,
-      0,
+    const allowedTypes = new Set([
+      ...allowedImageTypes,
+      ...(acceptsPdf ? [allowedPdfType] : []),
+    ]);
+    const invalidFile = incomingFiles.find(
+      (file) => !allowedTypes.has(file.type),
     );
 
-    if (totalSize > maximumTotalSize) {
-      setError(
-        "Combined photo size must be below 50 MB.",
-      );
-      event.target.value = "";
+    if (invalidFile) {
+      setFieldErrors((errors) => ({
+        ...errors,
+        files: `${invalidFile.name} is not supported. Use JPG, JPEG, PNG, WEBP${
+          acceptsPdf ? " or PDF" : ""
+        }.`,
+      }));
       return;
     }
 
-    const uniqueFiles = combinedFiles.filter(
+    const oversizedFile = incomingFiles.find(
+      (file) => file.size > maximumFileSize,
+    );
+
+    if (oversizedFile) {
+      setFieldErrors((errors) => ({
+        ...errors,
+        files: `${oversizedFile.name} is larger than 10 MB.`,
+      }));
+      return;
+    }
+
+    const uniqueFiles = [
+      ...selectedFiles,
+      ...incomingFiles,
+    ].filter(
       (file, index, files) =>
         index ===
         files.findIndex(
@@ -776,189 +1295,328 @@ function BookService() {
         ),
     );
 
-    setSelectedFiles(uniqueFiles);
-    setError("");
-    setSuccessMessage("");
-    event.target.value = "";
-  };
+    if (uniqueFiles.length > maximumFiles) {
+      setFieldErrors((errors) => ({
+        ...errors,
+        files: `Upload a maximum of ${maximumFiles} files per order.`,
+      }));
+      return;
+    }
 
-  const removeSelectedFile = (fileIndex) => {
-    setSelectedFiles((currentFiles) =>
-      currentFiles.filter(
-        (_, index) => index !== fileIndex,
+    replaceSelectedFiles(uniqueFiles);
+    clearFieldError("files");
+  }
+
+  function removeSelectedFile(indexToRemove) {
+    replaceSelectedFiles(
+      selectedFiles.filter(
+        (_, index) => index !== indexToRemove,
       ),
     );
+    clearFieldError("files");
+  }
 
-    setError("");
-  };
-
-  const createSafeFileName = (fileName) => {
-    const extension =
-      fileName.split(".").pop()?.toLowerCase() ||
-      "jpg";
-
-    const baseName = fileName
-      .replace(/\.[^/.]+$/, "")
-      .replace(/[^a-zA-Z0-9-_]/g, "-")
-      .replace(/-+/g, "-")
-      .slice(0, 70);
-
-    return `${baseName || "order-photo"}.${extension}`;
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-
-    setError("");
-    setSuccessMessage("");
-
-    if (!formData.customerName.trim()) {
-      setError("Please enter your full name.");
-      return;
-    }
-
-    if (!formData.phone.trim()) {
-      setError("Please enter your phone number.");
-      return;
-    }
+  function validateForm() {
+    const errors = {};
+    const compactPhone = formData.phone.replace(
+      /[\s()-]/g,
+      "",
+    );
+    const quantity = Number.parseInt(
+      formData.quantity,
+      10,
+    );
 
     if (!formData.service) {
-      setError("Please select a service.");
-      return;
+      errors.service =
+        "Please choose the service you need.";
     }
 
-    const serviceValidationError =
-      getServiceValidationError(formData);
-
-    if (serviceValidationError) {
-      setError(serviceValidationError);
-      return;
+    if (!formData.customerName.trim()) {
+      errors.customerName =
+        "Please enter your full name.";
     }
 
     if (
-      formData.deliveryType ===
-        "Home Delivery" &&
-      !formData.address.trim()
+      !/^(?:\+91|91)?[6-9]\d{9}$/.test(
+        compactPhone,
+      )
     ) {
-      setError(
-        "Please enter the delivery address.",
-      );
-
-      return;
+      errors.phone =
+        "Enter a valid 10-digit Indian mobile number. You may include +91.";
     }
-
-    const quantity =
-      Number.parseInt(formData.quantity, 10);
 
     if (
-      Number.isNaN(quantity) ||
-      quantity < 1 ||
-      quantity > 100
+      formData.email.trim() &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        formData.email.trim(),
+      )
     ) {
-      setError(
-        "Quantity must be between 1 and 100.",
-      );
+      errors.email =
+        "Enter a valid email address or leave this field blank.";
+    }
 
+    if (
+      formData.service !== "PAN Card Services" &&
+      (!Number.isInteger(quantity) ||
+        quantity < 1 ||
+        quantity > 100)
+    ) {
+      errors.quantity =
+        "Quantity must be between 1 and 100.";
+    }
+
+    if (
+      !formData.deliveryType ||
+      !availableDeliveryTypes.includes(
+        formData.deliveryType,
+      )
+    ) {
+      errors.deliveryType =
+        "Please select an available delivery type.";
+    }
+
+    if (
+      formData.service === "Passport Size Photos"
+    ) {
+      if (!formData.photoType) {
+        errors.photoType =
+          "Please choose a photo type.";
+      }
+      if (!formData.background) {
+        errors.background =
+          "Please choose a background.";
+      }
+      if (
+        formData.background ===
+          "Custom Background" &&
+        !formData.customBackground.trim()
+      ) {
+        errors.customBackground =
+          "Describe the custom background.";
+      }
+      if (!formData.dressRequirement) {
+        errors.dressRequirement =
+          "Please choose a dress requirement.";
+      }
+    }
+
+    if (formData.service === "Photo Frames") {
+      if (!formData.frameSize) {
+        errors.frameSize =
+          "Please choose a frame size.";
+      }
+      if (!formData.frameMaterial) {
+        errors.frameMaterial =
+          "Please choose MDF or PVC.";
+      }
+    }
+
+    if (formData.service === "Photo Restoration") {
+      if (!formData.restorationType) {
+        errors.restorationType =
+          "Please choose a restoration type.";
+      }
+      if (!formData.outputPreference) {
+        errors.outputPreference =
+          "Please choose an output preference.";
+      }
+      if (
+        [
+          "Printed Photo",
+          "Digital + Printed",
+        ].includes(formData.outputPreference) &&
+        !formData.printSize
+      ) {
+        errors.printSize =
+          "Please choose a print size.";
+      }
+    }
+
+    if (formData.service === "PAN Card Services") {
+      if (!formData.panServiceType) {
+        errors.panServiceType =
+          "Please choose the PAN service required.";
+      }
+      if (!formData.applicantType) {
+        errors.applicantType =
+          "Please choose an applicant type.";
+      }
+    }
+
+    if (
+      formData.service === "Travel Ticket Booking"
+    ) {
+      if (!formData.travelType) {
+        errors.travelType =
+          "Please choose train, bus or flight.";
+      }
+      if (!formData.fromLocation.trim()) {
+        errors.fromLocation =
+          "Enter the starting location.";
+      }
+      if (!formData.toLocation.trim()) {
+        errors.toLocation =
+          "Enter the destination.";
+      }
+      if (!formData.journeyDate) {
+        errors.journeyDate =
+          "Choose a journey date.";
+      }
+      if (!formData.journeyType) {
+        errors.journeyType =
+          "Choose one way or round trip.";
+      }
+      if (
+        formData.journeyType === "Round Trip" &&
+        !formData.returnDate
+      ) {
+        errors.returnDate =
+          "Choose a return date.";
+      }
+      if (!formData.travelPreference) {
+        errors.travelPreference =
+          "Choose a travel class or preference.";
+      }
+
+      formData.passengers.forEach((passenger) => {
+        if (!passenger.fullName.trim()) {
+          errors[`${passenger.id}-fullName`] =
+            "Enter the passenger name.";
+        }
+        if (
+          !passenger.age ||
+          Number(passenger.age) < 1 ||
+          Number(passenger.age) > 120
+        ) {
+          errors[`${passenger.id}-age`] =
+            "Enter a valid age.";
+        }
+        if (!passenger.gender) {
+          errors[`${passenger.id}-gender`] =
+            "Choose a gender.";
+        }
+      });
+    }
+
+    if (
+      formData.service ===
+      "Laminations & Print Support"
+    ) {
+      if (!formData.supportServiceType) {
+        errors.supportServiceType =
+          "Please choose a service type.";
+      }
+      if (!formData.supportSize) {
+        errors.supportSize =
+          "Please choose a size.";
+      }
+      if (
+        [
+          "Document Print",
+          "Xerox",
+        ].includes(formData.supportServiceType) &&
+        !formData.printType
+      ) {
+        errors.printType =
+          "Please choose black and white or color.";
+      }
+      if (
+        [
+          "Document Lamination",
+          "ID Card Lamination",
+        ].includes(formData.supportServiceType) &&
+        !formData.laminationType
+      ) {
+        errors.laminationType =
+          "Please choose a lamination type.";
+      }
+    }
+
+    if (
+      requiresUpload &&
+      selectedFiles.length === 0
+    ) {
+      errors.files = `Please upload at least one file for ${formData.service}.`;
+    }
+
+    if (formData.deliveryType === "Home Delivery") {
+      [
+        ["houseNumber", "Enter the house or door number."],
+        [
+          "streetVillage",
+          "Enter the street or village.",
+        ],
+        ["areaMandal", "Enter the area or mandal."],
+        ["district", "Enter the district."],
+        ["state", "Enter the state."],
+        ["landmark", "Enter a nearby landmark."],
+      ].forEach(([field, message]) => {
+        if (!formData[field].trim()) {
+          errors[field] = message;
+        }
+      });
+
+      if (!/^\d{6}$/.test(formData.pincode.trim())) {
+        errors.pincode =
+          "Enter a valid 6-digit pincode.";
+      }
+    }
+
+    if (
+      !formData.paymentMethod ||
+      !availablePaymentMethods.some(
+        (method) =>
+          method.value === formData.paymentMethod,
+      )
+    ) {
+      errors.paymentMethod =
+        "Please choose an available payment method.";
+    }
+
+    setFieldErrors(errors);
+    return {
+      isValid: Object.keys(errors).length === 0,
+      quantity:
+        formData.service === "PAN Card Services"
+          ? 1
+          : quantity,
+    };
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+
+    if (isSubmitting) {
       return;
     }
 
-    const uploadedPhotoPaths = [];
-    let whatsappWindow = null;
+    setFormError("");
+    const validation = validateForm();
+
+    if (!validation.isValid) {
+      setFormError(
+        "Please review the highlighted fields before submitting.",
+      );
+      return;
+    }
+
+    if (!currentUser) {
+      navigate("/login", {
+        state: {
+          from:
+            location.pathname +
+            location.search,
+        },
+      });
+      return;
+    }
+
+    const uploadedFiles = [];
+    let insertedOrder = null;
 
     try {
       setIsSubmitting(true);
-
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) {
-        throw userError;
-      }
-
-      if (!user) {
-        setError(
-          "Please login before placing your order.",
-        );
-
-        window.setTimeout(() => {
-          navigate("/login", {
-            state: {
-              from:
-                window.location.pathname +
-                window.location.search,
-            },
-          });
-        }, 900);
-
-        return;
-      }
-
-      const enteredAddress =
-        formData.address.trim();
-
-      const addressWasChanged =
-        formData.deliveryType ===
-          "Home Delivery" &&
-        enteredAddress &&
-        enteredAddress !==
-          savedProfileAddress.trim();
-
-      const profileUpdate = {
-        full_name:
-          formData.customerName.trim(),
-        phone: formData.phone.trim(),
-      };
-
-      if (addressWasChanged) {
-        profileUpdate.address_line =
-          enteredAddress;
-
-        profileUpdate.city = null;
-        profileUpdate.district = null;
-        profileUpdate.state = null;
-        profileUpdate.postal_code = null;
-      }
-
-      const { error: profileUpdateError } =
-        await supabase
-          .from("profiles")
-          .update(profileUpdate)
-          .eq("id", user.id);
-
-      if (profileUpdateError) {
-        throw new Error(
-          `Profile details could not be updated: ${profileUpdateError.message}`,
-        );
-      }
-
-      const { error: metadataUpdateError } =
-        await supabase.auth.updateUser({
-          data: {
-            full_name:
-              formData.customerName.trim(),
-            phone: formData.phone.trim(),
-          },
-        });
-
-      if (metadataUpdateError) {
-        console.error(
-          "Order profile metadata could not be refreshed:",
-          metadataUpdateError,
-        );
-      }
-
-      if (addressWasChanged) {
-        setSavedProfileAddress(
-          enteredAddress,
-        );
-      }
-
-      whatsappWindow = window.open(
-        "about:blank",
-        "_blank",
-      );
 
       for (
         let fileIndex = 0;
@@ -966,25 +1624,21 @@ function BookService() {
         fileIndex += 1
       ) {
         const file = selectedFiles[fileIndex];
-
-        const safeFileName =
-          createSafeFileName(file.name);
-
+        setSubmissionStage(
+          `Uploading file ${fileIndex + 1} of ${selectedFiles.length}...`,
+        );
         const uniqueFileName =
-          typeof crypto.randomUUID ===
-          "function"
-            ? crypto.randomUUID()
-            : `${Date.now()}-${fileIndex}-${Math.random()
-                .toString(36)
-                .slice(2)}`;
-
-        const photoPath =
-          `${user.id}/${uniqueFileName}-${safeFileName}`;
+          createUniqueFileId(fileIndex);
+        const filePath = `${
+          currentUser.id
+        }/${uniqueFileName}-${createSafeFileName(
+          file.name,
+        )}`;
 
         const { error: uploadError } =
           await supabase.storage
             .from("order-photos")
-            .upload(photoPath, file, {
+            .upload(filePath, file, {
               cacheControl: "3600",
               upsert: false,
               contentType: file.type,
@@ -992,1181 +1646,2032 @@ function BookService() {
 
         if (uploadError) {
           throw new Error(
-            `${file.name} upload failed: ${uploadError.message}`,
+            `We could not upload ${file.name}. Please try again.`,
           );
         }
 
-        uploadedPhotoPaths.push({
-          path: photoPath,
+        uploadedFiles.push({
+          path: filePath,
           file,
         });
       }
 
-      const serviceDetailEntries =
-        getServiceDetailEntries(formData).filter(
-          (detail) => detail.value,
-        );
-
-      const serviceRequirements =
-        serviceDetailEntries.length > 0
-          ? [
-              "Service Requirements:",
-              ...serviceDetailEntries.map(
-                (detail) =>
-                  `${detail.label}: ${detail.value}`,
-              ),
-            ].join("\n")
-          : null;
-
-      const combinedInstructions = [
-        serviceRequirements,
-
-        formData.address.trim()
-          ? `Delivery Address: ${formData.address.trim()}`
-          : null,
-
-        formData.notes.trim()
-          ? `Additional Instructions: ${formData.notes.trim()}`
-          : null,
-      ]
-        .filter(Boolean)
-        .join("\n\n");
+      setSubmissionStage("Saving your service request...");
+      const structuredInstructions =
+        buildStructuredInstructions(formData);
 
       const {
-        data: savedOrder,
+        data: order,
         error: orderError,
       } = await supabase
         .from("orders")
         .insert({
-          user_id: user.id,
-
+          user_id: currentUser.id,
           customer_name:
             formData.customerName.trim(),
-
           phone: formData.phone.trim(),
-
+          email: formData.email.trim() || null,
+          service_category:
+            selectedServiceConfiguration.category,
           service: formData.service,
-
-          size:
-            getPrimaryOrderOption(formData) ||
-            "Not Applicable",
-
-          quantity,
-
+          size: getDatabaseSize(formData),
+          quantity: validation.quantity,
           delivery_type:
             formData.deliveryType,
-
-          instructions:
-            combinedInstructions || null,
-
+          instructions: structuredInstructions,
           photo_path:
-            uploadedPhotoPaths[0]?.path ||
-            null,
-
+            uploadedFiles[0]?.path || null,
           photo_name:
-            uploadedPhotoPaths[0]?.file
-              ?.name || null,
-
+            uploadedFiles[0]?.file.name || null,
           status: "pending",
+          payment_status: "pending",
+          amount_paid: 0,
+          payment_method:
+            formData.paymentMethod,
+          estimated_price:
+            priceInformation.estimatedPrice,
+          final_price:
+            priceInformation.finalPrice,
         })
-        .select("id")
+        .select(
+          "id, invoice_number, service_category, service, status, payment_status, payment_method, estimated_price, final_price, amount_paid, created_at",
+        )
         .single();
 
       if (orderError) {
         throw new Error(
-          `Order could not be saved: ${orderError.message}`,
+          "Your order could not be saved. Please check the details and try again.",
         );
       }
 
-      if (uploadedPhotoPaths.length > 0) {
-        const orderFileRows =
-          uploadedPhotoPaths.map(
-            ({ path, file }) => ({
-              order_id: savedOrder.id,
-              user_id: user.id,
-              file_type: "original",
-              storage_bucket:
-                "order-photos",
-              file_path: path,
-              file_name: file.name,
-              file_size: file.size,
-              mime_type: file.type,
-              uploaded_by: "customer",
-            }),
-          );
+      insertedOrder = order;
+      let filesLinked = true;
 
+      if (uploadedFiles.length > 0) {
+        setSubmissionStage(
+          "Linking uploaded files to your order...",
+        );
         const {
           error: orderFilesError,
         } = await supabase
           .from("order_files")
-          .insert(orderFileRows);
+          .insert(
+            uploadedFiles.map(
+              ({ path, file }) => ({
+                order_id: order.id,
+                user_id: currentUser.id,
+                file_type: "original",
+                storage_bucket:
+                  "order-photos",
+                file_path: path,
+                file_name: file.name,
+                file_size: file.size,
+                mime_type: file.type,
+                uploaded_by: "customer",
+              }),
+            ),
+          );
 
         if (orderFilesError) {
-          throw new Error(
-            `Order photos could not be linked: ${orderFilesError.message}`,
+          filesLinked = false;
+          console.error(
+            "Order was saved, but file records could not be linked:",
+            orderFilesError.message,
           );
         }
       }
 
-      const shortOrderId =
-        savedOrder.id
-          .replace(/-/g, "")
-          .slice(0, 10)
-          .toUpperCase();
+      const profileUpdate = {
+        full_name:
+          formData.customerName.trim(),
+        phone: formData.phone.trim(),
+      };
+      const enteredAddress =
+        formatAddress(formData);
 
-      const message = `
-Hello Kushi Digitals,
-
-I have placed a new service order through the Kushi Digitals website.
-
-ORDER ID
-KD-${shortOrderId}
-
-CUSTOMER DETAILS
-Name: ${formData.customerName}
-Phone Number: ${formData.phone}
-
-ORDER DETAILS
-Required Service: ${formData.service}
-${serviceDetailEntries
-  .map(
-    (detail) =>
-      `${detail.label}: ${detail.value}`,
-  )
-  .join("\n")}
-Quantity: ${quantity}
-Delivery Type: ${
-        formData.deliveryType
+      if (
+        formData.deliveryType ===
+          "Home Delivery" &&
+        enteredAddress &&
+        enteredAddress !==
+          savedProfileAddress.trim()
+      ) {
+        profileUpdate.address_line =
+          enteredAddress;
       }
 
-DELIVERY ADDRESS
-${
-  formData.address ||
-  "Studio Pickup / Not Applicable"
-}
+      const { error: profileUpdateError } =
+        await supabase
+          .from("profiles")
+          .update(profileUpdate)
+          .eq("id", currentUser.id);
 
-PHOTO FILES
-${
-  selectedFiles.length > 0
-    ? `${selectedFiles.length} photo(s) uploaded securely through the website.
-Files:
-${selectedFiles
-  .map(
-    (file, index) =>
-      `${index + 1}. ${file.name}`,
-  )
-  .join("\n")}`
-    : "No photos uploaded."
-}
-
-ADDITIONAL REQUIREMENT
-${
-  formData.notes ||
-  "No additional instructions."
-}
-
-Please review my order and confirm the final price and delivery details.
-      `.trim();
-
-      setSuccessMessage(
-        `Order KD-${shortOrderId} was saved successfully. Your latest contact details were also updated. Opening WhatsApp and your Orders page...`,
-      );
-
-      const whatsappLink =
-        createWhatsAppLink(message);
-
-      if (whatsappWindow) {
-        whatsappWindow.location.href =
-          whatsappLink;
-      } else {
-        window.open(
-          whatsappLink,
-          "_blank",
-          "noopener,noreferrer",
+      if (profileUpdateError) {
+        console.error(
+          "Order saved; profile details were not updated:",
+          profileUpdateError.message,
         );
       }
 
-      setFormData((currentData) => ({
-        ...initialFormData,
-        customerName:
-          currentData.customerName,
-        phone: currentData.phone,
-        address: currentData.address,
-      }));
-      setSelectedFiles([]);
+      const savedOrderDetails = {
+        ...order,
+        fileCount: uploadedFiles.length,
+        filesLinked,
+        reviewItems: orderSummary,
+      };
 
-      window.setTimeout(() => {
-        navigate("/dashboard/orders");
-      }, 1300);
+      clearSelectedFiles();
+
+      if (formData.paymentMethod === "razorpay") {
+        try {
+          setSubmissionStage(
+            "Preparing secure online payment...",
+          );
+          const {
+            data: checkoutData,
+            error: createPaymentError,
+          } = await supabase.functions.invoke(
+            "create-razorpay-order",
+            {
+              body: {
+                orderId: order.id,
+              },
+            },
+          );
+
+          if (
+            createPaymentError ||
+            !checkoutData?.razorpayOrderId
+          ) {
+            throw new Error(
+              "Secure payment could not be prepared. Your order is saved and remains unpaid.",
+            );
+          }
+
+          await loadRazorpayCheckout();
+          setSubmissionStage(
+            "Complete payment in the secure checkout...",
+          );
+          const checkoutResponse =
+            await openRazorpayCheckout({
+              checkoutData,
+              customer: {
+                name: formData.customerName.trim(),
+                phone: formData.phone.trim(),
+                email:
+                  formData.email.trim() ||
+                  currentUser.email ||
+                  "",
+              },
+              service: formData.service,
+            });
+
+          setSubmissionStage(
+            "Verifying your payment securely...",
+          );
+          const {
+            data: verificationData,
+            error: verificationError,
+          } = await supabase.functions.invoke(
+            "verify-razorpay-payment",
+            {
+              body: {
+                orderId: order.id,
+                razorpay_payment_id:
+                  checkoutResponse.razorpay_payment_id,
+                razorpay_order_id:
+                  checkoutResponse.razorpay_order_id,
+                razorpay_signature:
+                  checkoutResponse.razorpay_signature,
+              },
+            },
+          );
+
+          if (
+            verificationError ||
+            !verificationData?.verified
+          ) {
+            throw new Error(
+              "Payment could not be verified. Your order is saved; please check My Orders before trying again.",
+            );
+          }
+
+          setSavedOrder({
+            ...savedOrderDetails,
+            payment_status: "paid",
+            amount_paid:
+              verificationData.amountPaid,
+          });
+        } catch (paymentError) {
+          setSavedOrder({
+            ...savedOrderDetails,
+            paymentNotice:
+              paymentError.message ||
+              "Online payment was not completed. Your order is saved and remains unpaid.",
+          });
+        }
+      } else {
+        setSavedOrder(savedOrderDetails);
+      }
+
+      window.scrollTo({
+        top: 0,
+        behavior: window.matchMedia(
+          "(prefers-reduced-motion: reduce)",
+        ).matches
+          ? "auto"
+          : "smooth",
+      });
     } catch (submitError) {
       if (
-        uploadedPhotoPaths.length > 0
+        !insertedOrder &&
+        uploadedFiles.length > 0
       ) {
-        await supabase.storage
-          .from("order-photos")
-          .remove(
-            uploadedPhotoPaths.map(
-              (item) => item.path,
-            ),
+        const { error: cleanupError } =
+          await supabase.storage
+            .from("order-photos")
+            .remove(
+              uploadedFiles.map(
+                (file) => file.path,
+              ),
+            );
+
+        if (cleanupError) {
+          console.error(
+            "Unable to remove unused uploads:",
+            cleanupError.message,
           );
+        }
       }
 
-      if (whatsappWindow) {
-        whatsappWindow.close();
-      }
-
-      setError(
+      setFormError(
         submitError.message ||
-          "Unable to place your order. Please try again.",
+          "We could not place your order. Please try again.",
       );
     } finally {
       setIsSubmitting(false);
+      setSubmissionStage("");
     }
-  };
+  }
+
+  if (isAuthChecking) {
+    return (
+      <section className="booking-auth-loader">
+        <LoaderCircle
+          size={34}
+          className="spin-icon"
+        />
+        <strong>Preparing your booking</strong>
+        <span>
+          Securely checking your customer account...
+        </span>
+      </section>
+    );
+  }
+
+  if (savedOrder) {
+    const displayOrderNumber =
+      savedOrder.invoice_number ||
+      `KD-${getShortOrderId(savedOrder.id)}`;
+
+    return (
+      <div className="booking-builder-page">
+        <PageHero
+          eyebrow="Order Confirmed"
+          title="Your Service Request"
+          highlight="Is Successfully Placed"
+          description="Your request is securely saved. Follow its service and payment status from My Orders."
+        />
+
+        <section className="booking-section booking-success-section">
+          <div className="container">
+            <article className="booking-success-card">
+              <div className="booking-success-icon">
+                <CheckCircle2 size={42} />
+              </div>
+
+              <span>REQUEST RECEIVED</span>
+              <h1>Thank you for choosing Kushi Digitals</h1>
+              <p>
+                Our team will review your requirement and
+                confirm the next steps.
+              </p>
+
+              <div className="booking-success-details">
+                <div>
+                  <span>Invoice / Order ID</span>
+                  <strong>{displayOrderNumber}</strong>
+                </div>
+                <div>
+                  <span>Selected Service</span>
+                  <strong>{savedOrder.service}</strong>
+                </div>
+                <div>
+                  <span>Uploaded Files</span>
+                  <strong>{savedOrder.fileCount}</strong>
+                </div>
+                <div>
+                  <span>Order Status</span>
+                  <strong className="pending">
+                    {savedOrder.status || "pending"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Payment Status</span>
+                  <strong
+                    className={
+                      savedOrder.payment_status === "paid"
+                        ? "paid"
+                        : "pending"
+                    }
+                  >
+                    {savedOrder.payment_status ||
+                      "pending"}
+                  </strong>
+                </div>
+              </div>
+
+              <div className="booking-success-options">
+                <strong>Service Details</strong>
+                {savedOrder.reviewItems
+                  .filter(
+                    (item) =>
+                      ![
+                        "Service",
+                        "Customer",
+                        "Phone",
+                        "Uploaded Files",
+                      ].includes(item.label),
+                  )
+                  .map((item) => (
+                    <div key={item.label}>
+                      <span>{item.label}</span>
+                      <b>{item.value}</b>
+                    </div>
+                  ))}
+              </div>
+
+              <p className="booking-success-next-step">
+                {savedOrder.payment_status === "paid"
+                  ? "Your payment is verified and the order is ready for Kushi Digitals to process."
+                  : "Your order is saved. Kushi Digitals will confirm availability and the next action through your account or contact details."}
+              </p>
+
+              {savedOrder.paymentNotice && (
+                <div
+                  className="booking-success-file-warning"
+                  role="alert"
+                >
+                  {savedOrder.paymentNotice}
+                </div>
+              )}
+
+              {!savedOrder.filesLinked &&
+                savedOrder.fileCount > 0 && (
+                  <div
+                    className="booking-success-file-warning"
+                    role="alert"
+                  >
+                    The order was saved, but the uploaded file
+                    links need support verification. Please
+                    contact Kushi Digitals with the order ID
+                    above.
+                  </div>
+                )}
+
+              <div className="booking-success-actions">
+                <Link
+                  to="/dashboard/orders"
+                  className="primary-button"
+                >
+                  View My Orders
+                  <ArrowRight size={18} />
+                </Link>
+                <Link
+                  to="/"
+                  className="secondary-button"
+                >
+                  Return Home
+                </Link>
+              </div>
+            </article>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  const isPrintRestoration = [
+    "Printed Photo",
+    "Digital + Printed",
+  ].includes(formData.outputPreference);
+  const isPrintSupport = [
+    "Document Print",
+    "Xerox",
+  ].includes(formData.supportServiceType);
+  const isLaminationSupport = [
+    "Document Lamination",
+    "ID Card Lamination",
+  ].includes(formData.supportServiceType);
+  const travelPreferences =
+    selectedServiceConfiguration
+      ?.travelPreferences?.[formData.travelType] || [];
 
   return (
-    <>
+    <div className="booking-builder-page">
       <PageHero
         eyebrow="Book A Service"
-        title="Place Your Order"
-        highlight="Quickly & Easily"
-        description="Select your required service, upload a photo, enter your order details and securely place your order with Kushi Digitals."
+        title="Build Your"
+        highlight="Service Request"
+        description="Choose one Kushi Digitals service, add only the details it needs and review everything before submitting securely."
       />
 
       <section className="booking-section">
-        <div className="container booking-layout">
-          <form
-            className="booking-form-card"
-            onSubmit={handleSubmit}
+        <div className="container">
+          <div
+            className="booking-progress"
+            aria-label="Booking steps"
           >
-            <div className="booking-form-heading">
-              <span>New Service Request</span>
-
-              <h2>Tell Us What You Need</h2>
-
-              <p>
-                Complete the details below. We
-                will review your order and
-                confirm the final price through
-                WhatsApp.
-              </p>
-            </div>
-
-            {error && (
+            {bookingSteps.map((step, index) => (
               <div
-                className="booking-error"
-                role="alert"
+                className={
+                  index === 0 || formData.service
+                    ? "is-active"
+                    : ""
+                }
+                key={step}
               >
-                {error}
+                <span>{index + 1}</span>
+                <small>{step}</small>
               </div>
-            )}
+            ))}
+          </div>
 
-            {successMessage && (
-              <div
-                className="booking-success"
-                role="status"
-              >
-                <CheckCircle2 size={19} />
-                <span>{successMessage}</span>
-              </div>
-            )}
-
-            <div className="booking-form-section">
-              <div className="booking-section-title">
-                <UserRound size={20} />
-
-                <div>
-                  <strong>
-                    Customer Details
-                  </strong>
-
-                  <span>
-                    Enter your contact
-                    information
-                  </span>
-                </div>
+          <div className="booking-layout">
+            <form
+              className="booking-form-card"
+              onSubmit={handleSubmit}
+              noValidate
+            >
+              <div className="booking-form-heading">
+                <span>Premium Guided Booking</span>
+                <h2>Book the right service</h2>
+                <p>
+                  The form adapts to your selection, so you
+                  only provide information relevant to your
+                  order.
+                </p>
               </div>
 
-              <div className="booking-form-grid">
-                <div className="form-field">
-                  <label htmlFor="customerName">
-                    Full Name
-                  </label>
-
-                  <input
-                    id="customerName"
-                    name="customerName"
-                    type="text"
-                    value={
-                      formData.customerName
-                    }
-                    onChange={
-                      handleInputChange
-                    }
-                    placeholder="Enter your full name"
-                    autoComplete="name"
-                    required
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="phone">
-                    Phone Number
-                  </label>
-
-                  <input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={
-                      handleInputChange
-                    }
-                    placeholder="Enter your phone number"
-                    autoComplete="tel"
-                    inputMode="tel"
-                    required
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="booking-form-section">
-              <div className="booking-section-title">
-                <PackageCheck size={20} />
-
-                <div>
-                  <strong>
-                    Service Details
-                  </strong>
-
-                  <span>
-                    Select service options and
-                    quantity
-                  </span>
-                </div>
-              </div>
-
-              <div className="booking-service-selector">
-                <div className="booking-service-selector__heading">
-                  <strong>
-                    Choose a service
-                  </strong>
-
-                  <span>
-                    Select a card to see the
-                    options for that service.
-                  </span>
-                </div>
-
+              {formError && (
                 <div
-                  className="premium-service-grid premium-service-grid--selector"
-                  aria-label="Available services"
+                  className="booking-error"
+                  role="alert"
                 >
-                  {servicesData.map(
-                    (service) => (
-                      <ServiceCard
-                        key={service.id}
-                        service={service}
-                        selected={
-                          formData.service ===
-                          service.name
-                        }
-                        onSelect={
-                          handleServiceCardSelect
-                        }
-                        actionLabel="Select Service"
-                        compact
-                      />
-                    ),
-                  )}
+                  {formError}
                 </div>
+              )}
 
-                <div className="service-selector-fallback form-field">
-                  <label htmlFor="service">
-                    Compact service list
-                  </label>
-
-                  <select
-                    id="service"
-                    name="service"
-                    value={formData.service}
-                    onChange={
-                      handleInputChange
-                    }
-                    required
-                  >
-                    <option value="">
-                      Choose a service
-                    </option>
-
-                    {servicesData.map(
-                      (service) => (
-                        <option
-                          key={service.id}
-                          value={service.name}
-                        >
-                          {service.name}
-                        </option>
-                      ),
-                    )}
-                  </select>
-                </div>
-              </div>
-
-              <div
-                className="booking-form-grid"
-                id="service-requirements"
-              >
-
-                {formData.service ===
-                  "Passport Photos" && (
-                  <div className="form-field booking-full-field">
-                    <label htmlFor="passportPackage">
-                      Passport Photo Package
-                    </label>
-
-                    <select
-                      id="passportPackage"
-                      name="passportPackage"
-                      value={
-                        formData.passportPackage
-                      }
-                      onChange={
-                        handleInputChange
-                      }
-                      required
-                    >
-                      <option value="">
-                        Choose a package
-                      </option>
-
-                      {passportPackages.map(
-                        (photoPackage) => (
-                          <option
-                            key={photoPackage}
-                            value={photoPackage}
-                          >
-                            {photoPackage}
-                          </option>
-                        ),
-                      )}
-                    </select>
-                  </div>
-                )}
-
-                {formData.service ===
-                  "Photo Restoration" && (
-                  <>
-                    <div className="form-field booking-full-field">
-                      <label htmlFor="restorationDeliveryOption">
-                        Delivery Option
-                      </label>
-
-                      <select
-                        id="restorationDeliveryOption"
-                        name="restorationDeliveryOption"
-                        value={
-                          formData.restorationDeliveryOption
-                        }
-                        onChange={
-                          handleInputChange
-                        }
-                        required
-                      >
-                        <option value="">
-                          Choose a delivery option
-                        </option>
-
-                        {restorationDeliveryOptions.map(
-                          (option) => (
-                            <option
-                              key={option}
-                              value={option}
-                            >
-                              {option}
-                            </option>
-                          ),
-                        )}
-                      </select>
-                    </div>
-
-                    {formData.restorationDeliveryOption ===
-                      "Digital + Print" && (
-                      <div className="form-field">
-                        <label htmlFor="printSize">
-                          Print Size (Optional)
-                        </label>
-
-                        <select
-                          id="printSize"
-                          name="printSize"
-                          value={
-                            formData.printSize
-                          }
-                          onChange={
-                            handleInputChange
-                          }
-                        >
-                          <option value="">
-                            Select print size
-                          </option>
-
-                          {printSizes.map(
-                            (size) => (
-                              <option
-                                key={size}
-                                value={size}
-                              >
-                                {size}
-                              </option>
-                            ),
-                          )}
-                        </select>
-                      </div>
-                    )}
-
-                    {formData.restorationDeliveryOption ===
-                      "Digital + Print" &&
-                      formData.printSize ===
-                        "Custom Size" && (
-                        <div className="form-field">
-                          <label htmlFor="customPrintSize">
-                            Custom Print Size
-                          </label>
-
-                          <input
-                            id="customPrintSize"
-                            name="customPrintSize"
-                            type="text"
-                            value={
-                              formData.customPrintSize
-                            }
-                            onChange={
-                              handleInputChange
-                            }
-                            placeholder="Enter required print size"
-                            required
-                          />
-                        </div>
-                      )}
-                  </>
-                )}
-
-                {formData.service ===
-                  "Premium Frames" && (
-                  <>
-                    <div className="form-field">
-                      <label htmlFor="frameSize">
-                        Frame Size
-                      </label>
-
-                      <select
-                        id="frameSize"
-                        name="frameSize"
-                        value={
-                          formData.frameSize
-                        }
-                        onChange={
-                          handleInputChange
-                        }
-                        required
-                      >
-                        <option value="">
-                          Select frame size
-                        </option>
-
-                        {frameSizes.map(
-                          (size) => (
-                            <option
-                              key={size}
-                              value={size}
-                            >
-                              {size}
-                            </option>
-                          ),
-                        )}
-                      </select>
-                    </div>
-
-                    {formData.frameSize ===
-                      "Custom Size" && (
-                      <div className="form-field">
-                        <label htmlFor="customFrameSize">
-                          Custom Frame Size
-                        </label>
-
-                        <input
-                          id="customFrameSize"
-                          name="customFrameSize"
-                          type="text"
-                          value={
-                            formData.customFrameSize
-                          }
-                          onChange={
-                            handleInputChange
-                          }
-                          placeholder="Enter width x height"
-                          required
-                        />
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {formData.service ===
-                  "Album Designing" && (
-                  <>
-                    <div className="form-field">
-                      <label htmlFor="albumSize">
-                        Album Size
-                      </label>
-
-                      <select
-                        id="albumSize"
-                        name="albumSize"
-                        value={
-                          formData.albumSize
-                        }
-                        onChange={
-                          handleInputChange
-                        }
-                        required
-                      >
-                        <option value="">
-                          Select album size
-                        </option>
-
-                        {albumSizes.map(
-                          (size) => (
-                            <option
-                              key={size}
-                              value={size}
-                            >
-                              {size}
-                            </option>
-                          ),
-                        )}
-                      </select>
-                    </div>
-
-                    <div className="form-field">
-                      <label htmlFor="numberOfPages">
-                        Number of Pages
-                      </label>
-
-                      <input
-                        id="numberOfPages"
-                        name="numberOfPages"
-                        type="number"
-                        min="1"
-                        step="1"
-                        value={
-                          formData.numberOfPages
-                        }
-                        onChange={
-                          handleInputChange
-                        }
-                        placeholder="Enter number of pages"
-                        required
-                      />
-                    </div>
-                  </>
-                )}
-
-                {formData.service ===
-                  "Photography" && (
-                  <>
-                    <div className="form-field">
-                      <label htmlFor="eventType">
-                        Event Type
-                      </label>
-
-                      <select
-                        id="eventType"
-                        name="eventType"
-                        value={
-                          formData.eventType
-                        }
-                        onChange={
-                          handleInputChange
-                        }
-                        required
-                      >
-                        <option value="">
-                          Select event type
-                        </option>
-
-                        {eventTypes.map(
-                          (eventType) => (
-                            <option
-                              key={eventType}
-                              value={eventType}
-                            >
-                              {eventType}
-                            </option>
-                          ),
-                        )}
-                      </select>
-                    </div>
-
-                    <div className="form-field">
-                      <label htmlFor="eventDate">
-                        Event Date
-                      </label>
-
-                      <input
-                        id="eventDate"
-                        name="eventDate"
-                        type="date"
-                        value={
-                          formData.eventDate
-                        }
-                        onChange={
-                          handleInputChange
-                        }
-                        required
-                      />
-                    </div>
-
-                    {formData.eventType ===
-                      "Other" && (
-                      <div className="form-field booking-full-field">
-                        <label htmlFor="customEventType">
-                          Custom Event Type
-                        </label>
-
-                        <input
-                          id="customEventType"
-                          name="customEventType"
-                          type="text"
-                          value={
-                            formData.customEventType
-                          }
-                          onChange={
-                            handleInputChange
-                          }
-                          placeholder="Enter event type"
-                          required
-                        />
-                      </div>
-                    )}
-
-                    <div className="form-field booking-full-field">
-                      <label htmlFor="eventLocation">
-                        Event Location
-                      </label>
-
-                      <input
-                        id="eventLocation"
-                        name="eventLocation"
-                        type="text"
-                        value={
-                          formData.eventLocation
-                        }
-                        onChange={
-                          handleInputChange
-                        }
-                        placeholder="Enter event location"
-                        required
-                      />
-                    </div>
-                  </>
-                )}
-
-                {formData.service ===
-                  "Digital Services" && (
-                  <div className="form-field booking-full-field">
-                    <label htmlFor="digitalServiceRequired">
-                      Digital Service Required
-                    </label>
-
-                    <textarea
-                      id="digitalServiceRequired"
-                      name="digitalServiceRequired"
-                      rows="4"
-                      value={
-                        formData.digitalServiceRequired
-                      }
-                      onChange={
-                        handleInputChange
-                      }
-                      placeholder="Describe the digital service you need"
-                      required
-                    />
-                  </div>
-                )}
-
-                {formData.service ===
-                  "Other Service" && (
-                  <div className="form-field booking-full-field">
-                    <label htmlFor="customServiceDescription">
-                      Custom Service Description
-                    </label>
-
-                    <textarea
-                      id="customServiceDescription"
-                      name="customServiceDescription"
-                      rows="4"
-                      value={
-                        formData.customServiceDescription
-                      }
-                      onChange={
-                        handleInputChange
-                      }
-                      placeholder="Describe the service you need in detail"
-                      required
-                    />
-                  </div>
-                )}
-
-                <div className="form-field">
-                  <label htmlFor="quantity">
-                    Quantity
-                  </label>
-
-                  <input
-                    id="quantity"
-                    name="quantity"
-                    type="number"
-                    min="1"
-                    max="100"
-                    value={
-                      formData.quantity
-                    }
-                    onChange={
-                      handleInputChange
-                    }
-                    required
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="booking-form-section">
-              <div className="booking-section-title">
-                <ImagePlus size={20} />
-
-                <div>
-                  <strong>
-                    Upload Your Photos
-                  </strong>
-
-                  <span>
-                    Optional · JPG, PNG or WEBP — up to 10 photos
-                  </span>
-                </div>
-              </div>
-
-              <label className="photo-upload-area multiple-photo-upload-area">
-                <input
-                  type="file"
-                  multiple
-                  accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                  onChange={handleFileChange}
+              <div className="booking-form-section">
+                <StepHeading
+                  number="1"
+                  title="Choose Service"
+                  description="Select one of the six available Kushi Digitals services"
                 />
 
-                <span className="upload-icon">
-                  <UploadCloud size={31} />
-                </span>
+                <div className="booking-direct-service-grid">
+                  {bookingServices.map((service) => (
+                    <ServiceCard
+                      service={service}
+                      key={service.id}
+                      selected={
+                        formData.service ===
+                        service.name
+                      }
+                      onSelect={handleServiceSelect}
+                      actionLabel="Select Service"
+                    />
+                  ))}
+                </div>
 
-                <strong>
-                  Click to choose one or more photos
-                </strong>
+                {fieldErrors.service && (
+                  <small className="form-field-error">
+                    {fieldErrors.service}
+                  </small>
+                )}
+              </div>
 
-                <small>
-                  Maximum 10 photos · 10 MB each · 50 MB combined
-                </small>
-              </label>
-
-              {selectedFiles.length > 0 && (
+              {formData.service && (
                 <>
-                  <div className="multiple-photo-selection-summary">
-                    <div>
-                      <strong>
-                        {selectedFiles.length} photo(s) selected
-                      </strong>
+                  <div
+                    className="booking-form-section"
+                    id="service-requirements"
+                  >
+                    <StepHeading
+                      number="2"
+                      title="Service Options"
+                      description={`Add the details required for ${formData.service}`}
+                    />
 
-                      <span>
-                        {(
-                          selectedFiles.reduce(
-                            (total, file) =>
-                              total + file.size,
-                            0,
-                          ) /
-                          1024 /
-                          1024
-                        ).toFixed(2)}{" "}
-                        MB total
-                      </span>
+                    <div className="booking-form-grid booking-options-grid">
+                      {formData.service ===
+                        "Passport Size Photos" && (
+                        <>
+                          <SelectField
+                            label="Photo Pack"
+                            name="photoType"
+                            value={formData.photoType}
+                            options={
+                              selectedServiceConfiguration.photoTypes
+                            }
+                            onChange={handleInputChange}
+                            error={
+                              fieldErrors.photoType
+                            }
+                          />
+                          <SelectField
+                            label="Background"
+                            name="background"
+                            value={formData.background}
+                            options={
+                              selectedServiceConfiguration.backgrounds
+                            }
+                            onChange={handleInputChange}
+                            error={
+                              fieldErrors.background
+                            }
+                          />
+                          {formData.background ===
+                            "Custom Background" && (
+                            <div className="form-field booking-full-field">
+                              <label htmlFor="customBackground">
+                                Custom Background
+                              </label>
+                              <input
+                                id="customBackground"
+                                name="customBackground"
+                                type="text"
+                                value={
+                                  formData.customBackground
+                                }
+                                onChange={
+                                  handleInputChange
+                                }
+                                placeholder="Describe the required background"
+                                aria-invalid={Boolean(
+                                  fieldErrors.customBackground,
+                                )}
+                              />
+                              {fieldErrors.customBackground && (
+                                <small className="form-field-error">
+                                  {
+                                    fieldErrors.customBackground
+                                  }
+                                </small>
+                              )}
+                            </div>
+                          )}
+                          <SelectField
+                            label="Dress Requirement"
+                            name="dressRequirement"
+                            value={
+                              formData.dressRequirement
+                            }
+                            options={
+                              selectedServiceConfiguration.dressRequirements
+                            }
+                            onChange={handleInputChange}
+                            error={
+                              fieldErrors.dressRequirement
+                            }
+                          />
+                          <QuantityControl
+                            label="Number of Sets"
+                            value={formData.quantity}
+                            onDecrease={() =>
+                              updateQuantity(
+                                Number(formData.quantity) -
+                                  1,
+                              )
+                            }
+                            onIncrease={() =>
+                              updateQuantity(
+                                Number(formData.quantity) +
+                                  1,
+                              )
+                            }
+                            onChange={(event) =>
+                              updateQuantity(
+                                event.target.value,
+                              )
+                            }
+                            error={fieldErrors.quantity}
+                            priceInformation={
+                              priceInformation
+                            }
+                            priceDetail={
+                              priceInformation.isComplete &&
+                              Number.isFinite(
+                                priceInformation.basePrice,
+                              )
+                                ? `${formatIndianCurrency(
+                                    priceInformation.basePrice,
+                                  )} per set`
+                                : ""
+                            }
+                          />
+                        </>
+                      )}
+
+                      {formData.service ===
+                        "Photo Frames" && (
+                        <>
+                          <SelectField
+                            label="Frame Size"
+                            name="frameSize"
+                            value={formData.frameSize}
+                            options={
+                              selectedServiceConfiguration.frameSizes
+                            }
+                            onChange={handleInputChange}
+                            error={
+                              fieldErrors.frameSize
+                            }
+                          />
+                          <SelectField
+                            label="Frame Material"
+                            name="frameMaterial"
+                            value={
+                              formData.frameMaterial
+                            }
+                            options={
+                              selectedServiceConfiguration.frameMaterials
+                            }
+                            onChange={handleInputChange}
+                            error={
+                              fieldErrors.frameMaterial
+                            }
+                          />
+                          <QuantityControl
+                            label="Quantity"
+                            value={formData.quantity}
+                            onDecrease={() =>
+                              updateQuantity(
+                                Number(formData.quantity) -
+                                  1,
+                              )
+                            }
+                            onIncrease={() =>
+                              updateQuantity(
+                                Number(formData.quantity) +
+                                  1,
+                              )
+                            }
+                            onChange={(event) =>
+                              updateQuantity(
+                                event.target.value,
+                              )
+                            }
+                            error={fieldErrors.quantity}
+                            priceInformation={
+                              priceInformation
+                            }
+                            priceDetail={
+                              priceInformation.isComplete &&
+                              Number.isFinite(
+                                priceInformation.basePrice,
+                              )
+                                ? `${formatIndianCurrency(
+                                    priceInformation.basePrice,
+                                  )} each`
+                                : ""
+                            }
+                          />
+                        </>
+                      )}
+
+                      {formData.service ===
+                        "Photo Restoration" && (
+                        <>
+                          <SelectField
+                            label="Restoration Requirement"
+                            name="restorationType"
+                            value={
+                              formData.restorationType
+                            }
+                            options={
+                              selectedServiceConfiguration.restorationTypes
+                            }
+                            onChange={handleInputChange}
+                            error={
+                              fieldErrors.restorationType
+                            }
+                          />
+                          <SelectField
+                            label="Output Preference"
+                            name="outputPreference"
+                            value={
+                              formData.outputPreference
+                            }
+                            options={
+                              selectedServiceConfiguration.outputPreferences
+                            }
+                            onChange={handleInputChange}
+                            error={
+                              fieldErrors.outputPreference
+                            }
+                          />
+                          {isPrintRestoration && (
+                            <SelectField
+                              label="Print Size"
+                              name="printSize"
+                              value={formData.printSize}
+                              options={
+                                selectedServiceConfiguration.printSizes
+                              }
+                              onChange={
+                                handleInputChange
+                              }
+                              error={
+                                fieldErrors.printSize
+                              }
+                            />
+                          )}
+                          <QuantityControl
+                            label="Quantity"
+                            value={formData.quantity}
+                            onDecrease={() =>
+                              updateQuantity(
+                                Number(formData.quantity) -
+                                  1,
+                              )
+                            }
+                            onIncrease={() =>
+                              updateQuantity(
+                                Number(formData.quantity) +
+                                  1,
+                              )
+                            }
+                            onChange={(event) =>
+                              updateQuantity(
+                                event.target.value,
+                              )
+                            }
+                            error={fieldErrors.quantity}
+                            priceInformation={
+                              priceInformation
+                            }
+                            priceDetail={
+                              priceInformation.isComplete &&
+                              Number.isFinite(
+                                priceInformation.basePrice,
+                              )
+                                ? `${formatIndianCurrency(
+                                    priceInformation.basePrice,
+                                  )} per photo`
+                                : ""
+                            }
+                          />
+                        </>
+                      )}
+
+                      {formData.service ===
+                        "PAN Card Services" && (
+                        <>
+                          <SelectField
+                            label="PAN Service Type"
+                            name="panServiceType"
+                            value={
+                              formData.panServiceType
+                            }
+                            options={
+                              selectedServiceConfiguration.panServiceTypes
+                            }
+                            onChange={handleInputChange}
+                            error={
+                              fieldErrors.panServiceType
+                            }
+                          />
+                          <SelectField
+                            label="Applicant Type"
+                            name="applicantType"
+                            value={
+                              formData.applicantType
+                            }
+                            options={
+                              selectedServiceConfiguration.applicantTypes
+                            }
+                            onChange={handleInputChange}
+                            error={
+                              fieldErrors.applicantType
+                            }
+                          />
+                          <LivePrice
+                            className="booking-full-field"
+                            priceInformation={
+                              priceInformation
+                            }
+                            detail="Selected PAN service"
+                          />
+                        </>
+                      )}
+
+                      {formData.service ===
+                        "Travel Ticket Booking" && (
+                        <>
+                          <SelectField
+                            label="Travel Type"
+                            name="travelType"
+                            value={formData.travelType}
+                            options={
+                              selectedServiceConfiguration.travelTypes
+                            }
+                            onChange={handleInputChange}
+                            error={
+                              fieldErrors.travelType
+                            }
+                          />
+                          <SelectField
+                            label="Return Journey"
+                            name="journeyType"
+                            value={formData.journeyType}
+                            options={
+                              selectedServiceConfiguration.journeyTypes
+                            }
+                            onChange={handleInputChange}
+                            error={
+                              fieldErrors.journeyType
+                            }
+                          />
+                          <div className="form-field">
+                            <label htmlFor="fromLocation">
+                              From Location
+                            </label>
+                            <input
+                              id="fromLocation"
+                              name="fromLocation"
+                              type="text"
+                              value={
+                                formData.fromLocation
+                              }
+                              onChange={
+                                handleInputChange
+                              }
+                              placeholder="Starting location"
+                              aria-invalid={Boolean(
+                                fieldErrors.fromLocation,
+                              )}
+                            />
+                            {fieldErrors.fromLocation && (
+                              <small className="form-field-error">
+                                {
+                                  fieldErrors.fromLocation
+                                }
+                              </small>
+                            )}
+                          </div>
+                          <div className="form-field">
+                            <label htmlFor="toLocation">
+                              To Location
+                            </label>
+                            <input
+                              id="toLocation"
+                              name="toLocation"
+                              type="text"
+                              value={formData.toLocation}
+                              onChange={
+                                handleInputChange
+                              }
+                              placeholder="Destination"
+                              aria-invalid={Boolean(
+                                fieldErrors.toLocation,
+                              )}
+                            />
+                            {fieldErrors.toLocation && (
+                              <small className="form-field-error">
+                                {fieldErrors.toLocation}
+                              </small>
+                            )}
+                          </div>
+                          <div className="form-field">
+                            <label htmlFor="journeyDate">
+                              Journey Date
+                            </label>
+                            <input
+                              id="journeyDate"
+                              name="journeyDate"
+                              type="date"
+                              value={
+                                formData.journeyDate
+                              }
+                              onChange={
+                                handleInputChange
+                              }
+                              aria-invalid={Boolean(
+                                fieldErrors.journeyDate,
+                              )}
+                            />
+                            {fieldErrors.journeyDate && (
+                              <small className="form-field-error">
+                                {fieldErrors.journeyDate}
+                              </small>
+                            )}
+                          </div>
+                          {formData.journeyType ===
+                            "Round Trip" && (
+                            <div className="form-field">
+                              <label htmlFor="returnDate">
+                                Return Date
+                              </label>
+                              <input
+                                id="returnDate"
+                                name="returnDate"
+                                type="date"
+                                value={
+                                  formData.returnDate
+                                }
+                                onChange={
+                                  handleInputChange
+                                }
+                                aria-invalid={Boolean(
+                                  fieldErrors.returnDate,
+                                )}
+                              />
+                              {fieldErrors.returnDate && (
+                                <small className="form-field-error">
+                                  {fieldErrors.returnDate}
+                                </small>
+                              )}
+                            </div>
+                          )}
+                          <SelectField
+                            label="Travel Class / Preference"
+                            name="travelPreference"
+                            value={
+                              formData.travelPreference
+                            }
+                            options={travelPreferences}
+                            onChange={handleInputChange}
+                            error={
+                              fieldErrors.travelPreference
+                            }
+                            className="booking-full-field"
+                          />
+                          <QuantityControl
+                            label="Number of Passengers"
+                            value={formData.quantity}
+                            onDecrease={() =>
+                              updatePassengerCount(
+                                formData.passengers
+                                  .length - 1,
+                              )
+                            }
+                            onIncrease={() =>
+                              updatePassengerCount(
+                                formData.passengers
+                                  .length + 1,
+                              )
+                            }
+                            onChange={(event) =>
+                              updatePassengerCount(
+                                event.target.value,
+                              )
+                            }
+                            error={fieldErrors.quantity}
+                            priceInformation={
+                              priceInformation
+                            }
+                            priceDetail="Booking assistance fee"
+                          />
+                        </>
+                      )}
+
+                      {formData.service ===
+                        "Laminations & Print Support" && (
+                        <>
+                          <SelectField
+                            label="Service Type"
+                            name="supportServiceType"
+                            value={
+                              formData.supportServiceType
+                            }
+                            options={
+                              selectedServiceConfiguration.serviceTypes
+                            }
+                            onChange={handleInputChange}
+                            error={
+                              fieldErrors.supportServiceType
+                            }
+                          />
+                          <SelectField
+                            label="Size"
+                            name="supportSize"
+                            value={
+                              formData.supportSize
+                            }
+                            options={
+                              selectedServiceConfiguration.sizes
+                            }
+                            onChange={handleInputChange}
+                            error={
+                              fieldErrors.supportSize
+                            }
+                          />
+                          {isPrintSupport && (
+                            <SelectField
+                              label="Print Type"
+                              name="printType"
+                              value={
+                                formData.printType
+                              }
+                              options={
+                                selectedServiceConfiguration.printTypes
+                              }
+                              onChange={
+                                handleInputChange
+                              }
+                              error={
+                                fieldErrors.printType
+                              }
+                            />
+                          )}
+                          {isLaminationSupport && (
+                            <SelectField
+                              label="Lamination Type"
+                              name="laminationType"
+                              value={
+                                formData.laminationType
+                              }
+                              options={
+                                selectedServiceConfiguration.laminationTypes
+                              }
+                              onChange={
+                                handleInputChange
+                              }
+                              error={
+                                fieldErrors.laminationType
+                              }
+                            />
+                          )}
+                          <QuantityControl
+                            label="Quantity"
+                            value={formData.quantity}
+                            onDecrease={() =>
+                              updateQuantity(
+                                Number(formData.quantity) -
+                                  1,
+                              )
+                            }
+                            onIncrease={() =>
+                              updateQuantity(
+                                Number(formData.quantity) +
+                                  1,
+                              )
+                            }
+                            onChange={(event) =>
+                              updateQuantity(
+                                event.target.value,
+                              )
+                            }
+                            error={fieldErrors.quantity}
+                            priceInformation={
+                              priceInformation
+                            }
+                            priceDetail={
+                              priceInformation.isComplete &&
+                              Number.isFinite(
+                                priceInformation.basePrice,
+                              )
+                                ? `${formatIndianCurrency(
+                                    priceInformation.basePrice,
+                                  )} each`
+                                : ""
+                            }
+                          />
+                        </>
+                      )}
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSelectedFiles([])
-                      }
-                    >
-                      <Trash2 size={17} />
-                      Remove All
-                    </button>
-                  </div>
-
-                  <div className="selected-photo-grid">
-                    {selectedFiles.map(
-                      (file, index) => (
-                        <article
-                          className="selected-multiple-photo-card"
-                          key={`${file.name}-${file.size}-${file.lastModified}`}
-                        >
-                          <div className="selected-multiple-photo-preview">
-                            <img
-                              src={
-                                previewUrls[index]
-                              }
-                              alt={`Selected photo ${
-                                index + 1
-                              }`}
-                            />
-
+                    {formData.service ===
+                      "Travel Ticket Booking" && (
+                      <div className="booking-passenger-section">
+                        <div className="booking-subsection-heading">
+                          <div>
+                            <strong>Passenger Details</strong>
                             <span>
-                              {index + 1}
+                              Add the required information
+                              for each passenger
                             </span>
                           </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updatePassengerCount(
+                                formData.passengers
+                                  .length + 1,
+                              )
+                            }
+                          >
+                            <Plus size={16} />
+                            Add Passenger
+                          </button>
+                        </div>
 
-                          <div className="selected-multiple-photo-info">
-                            <FileImage
-                              size={18}
-                            />
+                        <div className="booking-passenger-list">
+                          {formData.passengers.map(
+                            (passenger, index) => (
+                              <article
+                                className="booking-passenger-card"
+                                key={passenger.id}
+                              >
+                                <div className="booking-passenger-card-heading">
+                                  <strong>
+                                    Passenger {index + 1}
+                                  </strong>
+                                  {formData.passengers
+                                    .length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        removePassenger(
+                                          passenger.id,
+                                        )
+                                      }
+                                      aria-label={`Remove passenger ${index + 1}`}
+                                    >
+                                      <Trash2 size={15} />
+                                    </button>
+                                  )}
+                                </div>
 
+                                <div className="booking-form-grid">
+                                  <div className="form-field booking-full-field">
+                                    <label
+                                      htmlFor={`${passenger.id}-fullName`}
+                                    >
+                                      Full Name
+                                    </label>
+                                    <input
+                                      id={`${passenger.id}-fullName`}
+                                      type="text"
+                                      value={
+                                        passenger.fullName
+                                      }
+                                      onChange={(event) =>
+                                        handlePassengerChange(
+                                          passenger.id,
+                                          "fullName",
+                                          event.target
+                                            .value,
+                                        )
+                                      }
+                                      aria-invalid={Boolean(
+                                        fieldErrors[
+                                          `${passenger.id}-fullName`
+                                        ],
+                                      )}
+                                    />
+                                    {fieldErrors[
+                                      `${passenger.id}-fullName`
+                                    ] && (
+                                      <small className="form-field-error">
+                                        {
+                                          fieldErrors[
+                                            `${passenger.id}-fullName`
+                                          ]
+                                        }
+                                      </small>
+                                    )}
+                                  </div>
+                                  <div className="form-field">
+                                    <label
+                                      htmlFor={`${passenger.id}-age`}
+                                    >
+                                      Age
+                                    </label>
+                                    <input
+                                      id={`${passenger.id}-age`}
+                                      type="number"
+                                      min="1"
+                                      max="120"
+                                      value={
+                                        passenger.age
+                                      }
+                                      onChange={(event) =>
+                                        handlePassengerChange(
+                                          passenger.id,
+                                          "age",
+                                          event.target
+                                            .value,
+                                        )
+                                      }
+                                      aria-invalid={Boolean(
+                                        fieldErrors[
+                                          `${passenger.id}-age`
+                                        ],
+                                      )}
+                                    />
+                                    {fieldErrors[
+                                      `${passenger.id}-age`
+                                    ] && (
+                                      <small className="form-field-error">
+                                        {
+                                          fieldErrors[
+                                            `${passenger.id}-age`
+                                          ]
+                                        }
+                                      </small>
+                                    )}
+                                  </div>
+                                  <div className="form-field">
+                                    <label
+                                      htmlFor={`${passenger.id}-gender`}
+                                    >
+                                      Gender
+                                    </label>
+                                    <select
+                                      id={`${passenger.id}-gender`}
+                                      value={
+                                        passenger.gender
+                                      }
+                                      onChange={(event) =>
+                                        handlePassengerChange(
+                                          passenger.id,
+                                          "gender",
+                                          event.target
+                                            .value,
+                                        )
+                                      }
+                                      aria-invalid={Boolean(
+                                        fieldErrors[
+                                          `${passenger.id}-gender`
+                                        ],
+                                      )}
+                                    >
+                                      <option value="">
+                                        Choose gender
+                                      </option>
+                                      {selectedServiceConfiguration.genderOptions.map(
+                                        (option) => (
+                                          <option
+                                            value={option}
+                                            key={option}
+                                          >
+                                            {option}
+                                          </option>
+                                        ),
+                                      )}
+                                    </select>
+                                    {fieldErrors[
+                                      `${passenger.id}-gender`
+                                    ] && (
+                                      <small className="form-field-error">
+                                        {
+                                          fieldErrors[
+                                            `${passenger.id}-gender`
+                                          ]
+                                        }
+                                      </small>
+                                    )}
+                                  </div>
+                                  <div className="form-field booking-full-field">
+                                    <label
+                                      htmlFor={`${passenger.id}-seatPreference`}
+                                    >
+                                      Berth / Seat Preference
+                                      <span className="optional-label">
+                                        Optional
+                                      </span>
+                                    </label>
+                                    <input
+                                      id={`${passenger.id}-seatPreference`}
+                                      type="text"
+                                      value={
+                                        passenger.seatPreference
+                                      }
+                                      onChange={(event) =>
+                                        handlePassengerChange(
+                                          passenger.id,
+                                          "seatPreference",
+                                          event.target
+                                            .value,
+                                        )
+                                      }
+                                      placeholder="Example: Lower berth or window seat"
+                                    />
+                                  </div>
+                                </div>
+                              </article>
+                            ),
+                          )}
+                        </div>
+
+                        <div className="booking-context-note">
+                          <Info size={18} />
+                          <span>
+                            {
+                              selectedServiceConfiguration.note
+                            }
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="booking-form-section">
+                    <StepHeading
+                      number="3"
+                      title="Upload Files"
+                      description="Add the photos or documents needed for this request"
+                    />
+
+                    <div className="booking-upload-block">
+                      <label
+                        className="photo-upload-area multiple-photo-upload-area"
+                        htmlFor="bookingFiles"
+                      >
+                        <input
+                          id="bookingFiles"
+                          type="file"
+                          multiple
+                          accept={acceptedFileTypes}
+                          onChange={handleFileChange}
+                        />
+                        <span className="upload-icon">
+                          <UploadCloud size={31} />
+                        </span>
+                        <strong>
+                          {selectedServiceConfiguration.uploadLabel}
+                          {requiresUpload ? " *" : ""}
+                        </strong>
+                        <small>
+                          JPG, JPEG, PNG or WEBP
+                          {acceptsPdf ? " • PDF accepted" : ""}
+                          {" • "}up to 10 MB each • maximum
+                          10 files
+                        </small>
+                      </label>
+
+                      {fieldErrors.files && (
+                        <small className="form-field-error">
+                          {fieldErrors.files}
+                        </small>
+                      )}
+
+                      {selectedServiceConfiguration.privacyNote && (
+                        <div className="booking-privacy-note">
+                          <ShieldCheck size={18} />
+                          <span>
+                            {
+                              selectedServiceConfiguration.privacyNote
+                            }
+                          </span>
+                        </div>
+                      )}
+
+                      {selectedFiles.length > 0 && (
+                        <>
+                          <div className="multiple-photo-selection-summary">
                             <div>
                               <strong>
-                                {file.name}
+                                {selectedFiles.length} file(s)
+                                ready
                               </strong>
-
                               <span>
                                 {(
-                                  file.size /
+                                  selectedFiles.reduce(
+                                    (total, file) =>
+                                      total + file.size,
+                                    0,
+                                  ) /
                                   1024 /
                                   1024
                                 ).toFixed(2)}{" "}
-                                MB
+                                MB total
                               </span>
                             </div>
+                            <button
+                              type="button"
+                              onClick={clearSelectedFiles}
+                            >
+                              <Trash2 size={16} />
+                              Remove All
+                            </button>
                           </div>
 
-                          <button
-                            type="button"
-                            className="remove-multiple-photo-button"
-                            onClick={() =>
-                              removeSelectedFile(
-                                index,
-                              )
+                          <div className="selected-photo-grid">
+                            {selectedFiles.map(
+                              (file, index) => (
+                                <article
+                                  className="selected-multiple-photo-card"
+                                  key={`${file.name}-${file.size}-${file.lastModified}`}
+                                >
+                                  {previewUrls[index] ? (
+                                    <div className="selected-multiple-photo-preview">
+                                      <img
+                                        src={
+                                          previewUrls[
+                                            index
+                                          ]
+                                        }
+                                        alt={`Selected upload ${index + 1}`}
+                                      />
+                                      <span>
+                                        {index + 1}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <div className="selected-multiple-photo-preview booking-document-preview">
+                                      <FileText size={34} />
+                                      <span>PDF</span>
+                                    </div>
+                                  )}
+                                  <div className="selected-multiple-photo-info">
+                                    {file.type ===
+                                    allowedPdfType ? (
+                                      <FileText size={18} />
+                                    ) : (
+                                      <FileImage size={18} />
+                                    )}
+                                    <div>
+                                      <strong>
+                                        {file.name}
+                                      </strong>
+                                      <span>
+                                        {(
+                                          file.size /
+                                          1024 /
+                                          1024
+                                        ).toFixed(2)}{" "}
+                                        MB
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="remove-multiple-photo-button"
+                                    onClick={() =>
+                                      removeSelectedFile(
+                                        index,
+                                      )
+                                    }
+                                    aria-label={`Remove ${file.name}`}
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </article>
+                              ),
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="booking-form-section">
+                    <StepHeading
+                      number="4"
+                      title="Customer & Delivery Details"
+                      description="Confirm your contact information and supported delivery method"
+                    />
+
+                    <div className="booking-form-grid">
+                      <div className="form-field">
+                        <label htmlFor="customerName">
+                          Full Name
+                        </label>
+                        <input
+                          id="customerName"
+                          name="customerName"
+                          type="text"
+                          value={
+                            formData.customerName
+                          }
+                          onChange={handleInputChange}
+                          autoComplete="name"
+                          placeholder="Enter your full name"
+                          aria-invalid={Boolean(
+                            fieldErrors.customerName,
+                          )}
+                        />
+                        {fieldErrors.customerName && (
+                          <small className="form-field-error">
+                            {fieldErrors.customerName}
+                          </small>
+                        )}
+                      </div>
+
+                      <div className="form-field">
+                        <label htmlFor="phone">
+                          Phone Number
+                        </label>
+                        <input
+                          id="phone"
+                          name="phone"
+                          type="tel"
+                          value={formData.phone}
+                          onChange={handleInputChange}
+                          autoComplete="tel"
+                          inputMode="tel"
+                          placeholder="+91 98765 43210"
+                          aria-invalid={Boolean(
+                            fieldErrors.phone,
+                          )}
+                        />
+                        {fieldErrors.phone && (
+                          <small className="form-field-error">
+                            {fieldErrors.phone}
+                          </small>
+                        )}
+                      </div>
+
+                      <div className="form-field booking-full-field">
+                        <label htmlFor="email">
+                          Email Address (Optional)
+                        </label>
+                        <div className="booking-email-input">
+                          <Mail size={17} />
+                          <input
+                            id="email"
+                            name="email"
+                            type="email"
+                            value={formData.email}
+                            onChange={handleInputChange}
+                            autoComplete="email"
+                            placeholder="name@example.com"
+                            aria-invalid={Boolean(
+                              fieldErrors.email,
+                            )}
+                            aria-describedby={
+                              fieldErrors.email
+                                ? "email-help email-error"
+                                : "email-help"
                             }
-                            aria-label={`Remove ${file.name}`}
+                          />
+                        </div>
+                        <small
+                          className="form-field-helper"
+                          id="email-help"
+                        >
+                          Optional — used for order updates and
+                          online delivery.
+                        </small>
+                        {fieldErrors.email && (
+                          <small
+                            className="form-field-error"
+                            id="email-error"
                           >
-                            <Trash2
-                              size={17}
-                            />
-                          </button>
-                        </article>
-                      ),
+                            {fieldErrors.email}
+                          </small>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="booking-delivery-block">
+                      <label>Delivery Type</label>
+                      <div className="delivery-options">
+                        {availableDeliveryTypes.map(
+                          (deliveryType) => (
+                            <label
+                              key={deliveryType}
+                              className={`delivery-option ${
+                                formData.deliveryType ===
+                                deliveryType
+                                  ? "selected"
+                                  : ""
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name="deliveryType"
+                                value={deliveryType}
+                                checked={
+                                  formData.deliveryType ===
+                                  deliveryType
+                                }
+                                onChange={
+                                  handleInputChange
+                                }
+                              />
+                              <CheckCircle2 size={18} />
+                              <span>{deliveryType}</span>
+                            </label>
+                          ),
+                        )}
+                      </div>
+                      {fieldErrors.deliveryType && (
+                        <small className="form-field-error">
+                          {fieldErrors.deliveryType}
+                        </small>
+                      )}
+                    </div>
+
+                    {formData.deliveryType ===
+                      "Home Delivery" && (
+                      <div className="booking-home-delivery-panel">
+                        <div className="booking-subsection-heading">
+                          <div>
+                            <strong>
+                              Home Delivery Address
+                            </strong>
+                            <span>
+                              All fields are required for
+                              delivery
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="booking-form-grid booking-address-grid">
+                          {[
+                            [
+                              "houseNumber",
+                              "House / Door Number",
+                              "House or door number",
+                            ],
+                            [
+                              "streetVillage",
+                              "Street / Village",
+                              "Street or village",
+                            ],
+                            [
+                              "areaMandal",
+                              "Area / Mandal",
+                              "Area or mandal",
+                            ],
+                            [
+                              "district",
+                              "District",
+                              "District",
+                            ],
+                            [
+                              "state",
+                              "State",
+                              "State",
+                            ],
+                            [
+                              "pincode",
+                              "Pincode",
+                              "6-digit pincode",
+                            ],
+                            [
+                              "landmark",
+                              "Landmark",
+                              "Nearby landmark",
+                            ],
+                          ].map(
+                            ([
+                              name,
+                              label,
+                              placeholder,
+                            ]) => (
+                              <div
+                                className={`form-field ${
+                                  name === "landmark"
+                                    ? "booking-full-field"
+                                    : ""
+                                }`}
+                                key={name}
+                              >
+                                <label htmlFor={name}>
+                                  {label}
+                                </label>
+                                <input
+                                  id={name}
+                                  name={name}
+                                  type="text"
+                                  inputMode={
+                                    name === "pincode"
+                                      ? "numeric"
+                                      : undefined
+                                  }
+                                  value={
+                                    formData[name]
+                                  }
+                                  onChange={
+                                    handleInputChange
+                                  }
+                                  placeholder={
+                                    placeholder
+                                  }
+                                  aria-invalid={Boolean(
+                                    fieldErrors[name],
+                                  )}
+                                />
+                                {fieldErrors[name] && (
+                                  <small className="form-field-error">
+                                    {
+                                      fieldErrors[
+                                        name
+                                      ]
+                                    }
+                                  </small>
+                                )}
+                              </div>
+                            ),
+                          )}
+                        </div>
+                      </div>
                     )}
+
+                    <div className="form-field booking-notes-field">
+                      <label htmlFor="instructions">
+                        Special Instructions
+                        <span className="optional-label">
+                          Optional
+                        </span>
+                      </label>
+                      <textarea
+                        id="instructions"
+                        name="instructions"
+                        rows="5"
+                        value={formData.instructions}
+                        onChange={handleInputChange}
+                        placeholder={
+                          selectedServiceConfiguration.instructionsPlaceholder ||
+                          "Add any other useful details..."
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="booking-form-section">
+                    <StepHeading
+                      number="5"
+                      title="Payment Method"
+                      description="Choose from the payment options available for this order"
+                    />
+
+                    {availablePaymentMethods.length > 0 ? (
+                      <div className="booking-payment-options">
+                        {availablePaymentMethods.map(
+                          (method) => (
+                            <label
+                              className={`booking-payment-option ${
+                                formData.paymentMethod ===
+                                method.value
+                                  ? "selected"
+                                  : ""
+                              }`}
+                              key={method.value}
+                            >
+                              <input
+                                type="radio"
+                                name="paymentMethod"
+                                value={method.value}
+                                checked={
+                                  formData.paymentMethod ===
+                                  method.value
+                                }
+                                onChange={
+                                  handleInputChange
+                                }
+                              />
+                              <CheckCircle2 size={19} />
+                              <span>
+                                <strong>
+                                  {method.label}
+                                </strong>
+                                <small>
+                                  {method.description}
+                                </small>
+                              </span>
+                            </label>
+                          ),
+                        )}
+                      </div>
+                    ) : (
+                      <div className="booking-context-note">
+                        <Info size={18} />
+                        <span>
+                          Complete the required service options
+                          to see available payment methods.
+                        </span>
+                      </div>
+                    )}
+
+                    {fieldErrors.paymentMethod && (
+                      <small className="form-field-error">
+                        {fieldErrors.paymentMethod}
+                      </small>
+                    )}
+                  </div>
+
+                  <div className="booking-form-section">
+                    <StepHeading
+                      number="6"
+                      title="Review & Submit"
+                      description="Confirm the service-specific details before placing your order"
+                    />
+
+                    <div className="booking-mobile-review">
+                      {orderSummary.map((item) => (
+                        <div key={item.label}>
+                          <span>{item.label}</span>
+                          <strong>{item.value}</strong>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="primary-button booking-submit-button"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <LoaderCircle
+                            size={19}
+                            className="spin-icon"
+                          />
+                          {submissionStage ||
+                            "Processing Order..."}
+                        </>
+                      ) : (
+                        <>
+                          {formData.paymentMethod ===
+                          "razorpay"
+                            ? "Place Order & Pay Securely"
+                            : "Place Service Order"}
+                          <ArrowRight size={19} />
+                        </>
+                      )}
+                    </button>
+
+                    <div className="booking-security-note">
+                      <ShieldCheck size={18} />
+                      <span>
+                        Protected by your Kushi Digitals
+                        account and existing Supabase
+                        security policies.
+                      </span>
+                    </div>
                   </div>
                 </>
               )}
-            </div>
+            </form>
 
-            <div className="booking-form-section">
-              <div className="booking-section-title">
-                <MapPin size={20} />
-
-                <div>
-                  <strong>
-                    Delivery Details
-                  </strong>
-
-                  <span>
-                    Select how you want to
-                    receive the order
-                  </span>
-                </div>
-              </div>
-
-              <div className="delivery-options">
-                {[
-                  "Studio Pickup",
-                  "Home Delivery",
-                  "Digital Delivery",
-                ].map((deliveryType) => (
-                  <label
-                    key={deliveryType}
-                    className={`delivery-option ${
-                      formData.deliveryType ===
-                      deliveryType
-                        ? "selected"
-                        : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="deliveryType"
-                      value={deliveryType}
-                      checked={
-                        formData.deliveryType ===
-                        deliveryType
-                      }
-                      onChange={
-                        handleInputChange
-                      }
-                    />
-
-                    <CheckCircle2 size={19} />
-                    <span>{deliveryType}</span>
-                  </label>
-                ))}
-              </div>
-
-              {formData.deliveryType ===
-                "Home Delivery" && (
-                <div className="form-field booking-address-field">
-                  <label htmlFor="address">
-                    Complete Delivery Address
-                  </label>
-
-                  <textarea
-                    id="address"
-                    name="address"
-                    rows="4"
-                    value={formData.address}
-                    onChange={
-                      handleInputChange
-                    }
-                    placeholder="House number, village, mandal, district and PIN code"
-                    required
-                  />
-                </div>
-              )}
-
-              <div className="form-field booking-notes-field">
-                <label htmlFor="notes">
-                  Additional Instructions
-                </label>
-
-                <textarea
-                  id="notes"
-                  name="notes"
-                  rows="5"
-                  value={formData.notes}
-                  onChange={
-                    handleInputChange
-                  }
-                  placeholder="Mention background colour, frame style, editing requirement or delivery date..."
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="primary-button booking-submit-button"
-              disabled={isSubmitting}
-            >
-              {isSubmitting
-                ? "Saving Your Order..."
-                : "Place Order & Continue to WhatsApp"}
-
-              <MessageCircle size={19} />
-            </button>
-
-            <div className="booking-security-note">
-              <ShieldCheck size={18} />
-
-              <span>
-                Your order and uploaded photos
-                are securely connected to your
-                customer account.
-              </span>
-            </div>
-          </form>
-
-          <aside className="booking-summary-column">
-            <div className="booking-summary-card">
-              <span className="booking-summary-label">
-                Live Order Summary
-              </span>
-
-              <h2>Your Requirement</h2>
-
-              <div className="booking-summary-list">
-                {orderSummary.map((item) => (
-                  <div key={item.label}>
-                    <span>{item.label}</span>
-                    <strong>
-                      {item.value}
-                    </strong>
-                  </div>
-                ))}
-              </div>
-
-              <div className="booking-customer-preview">
-                <Phone size={19} />
-
-                <div>
-                  <span>
-                    Customer Contact
-                  </span>
-
-                  <strong>
-                    {formData.phone ||
-                      "Phone number not entered"}
-                  </strong>
-                </div>
-              </div>
-
-              <div className="booking-price-note">
-                <span>
-                  Price Information
+            <aside className="booking-summary-column">
+              <div className="booking-summary-card">
+                <span className="booking-summary-label">
+                  Live Order Review
                 </span>
+                <h2>Your Requirement</h2>
 
-                <p>
-                  Final price depends on photo
-                  condition, selected size,
-                  material, quantity and
-                  delivery location.
-                </p>
+                <div className="booking-summary-list">
+                  {orderSummary
+                    .filter(
+                      (item) =>
+                        item.label !== "Price Status",
+                    )
+                    .map((item) => (
+                      <div key={item.label}>
+                        <span>{item.label}</span>
+                        <strong>{item.value}</strong>
+                      </div>
+                    ))}
+                </div>
+
+                <div className="booking-price-panel">
+                  <span className="booking-summary-label">
+                    Live Price
+                  </span>
+
+                  {!priceInformation.isComplete && (
+                    <p>{priceInformation.status}</p>
+                  )}
+
+                  {priceInformation.isComplete &&
+                    priceInformation
+                      .requiresManualConfirmation && (
+                      <p>{priceInformation.status}</p>
+                    )}
+
+                  {priceInformation.isComplete &&
+                    !priceInformation
+                      .requiresManualConfirmation && (
+                      <div className="booking-price-rows">
+                        <div>
+                          <span>
+                            {priceInformation.baseLabel}
+                          </span>
+                          <strong>
+                            {formatIndianCurrency(
+                              priceInformation.basePrice,
+                            )}
+                          </strong>
+                        </div>
+
+                        {priceInformation.additionalCharges
+                          .length > 0 && (
+                          <div>
+                            <span>
+                              {
+                                priceInformation.additionalChargesLabel
+                              }
+                            </span>
+                            <strong>
+                              {formatIndianCurrency(
+                                priceInformation.additionalCharges.reduce(
+                                  (total, charge) =>
+                                    total +
+                                    charge.amount,
+                                  0,
+                                ),
+                              )}
+                            </strong>
+                          </div>
+                        )}
+
+                        {priceInformation.quantity !==
+                          null && (
+                          <div>
+                            <span>
+                              {
+                                priceInformation.quantityLabel
+                              }
+                            </span>
+                            <strong>
+                              {
+                                priceInformation.quantity
+                              }
+                            </strong>
+                          </div>
+                        )}
+
+                        {priceInformation.ticketFarePending ? (
+                          <div>
+                            <span>Ticket Fare</span>
+                            <strong>
+                              To be confirmed
+                            </strong>
+                          </div>
+                        ) : (
+                          <div>
+                            <span>
+                              {
+                                priceInformation.subtotalLabel
+                              }
+                            </span>
+                            <strong>
+                              {formatIndianCurrency(
+                                priceInformation.subtotal,
+                              )}
+                            </strong>
+                          </div>
+                        )}
+
+                        {!priceInformation.ticketFarePending && (
+                          <div>
+                            <span>
+                              Delivery Charge
+                            </span>
+                            <strong>
+                              {formatIndianCurrency(
+                                priceInformation.deliveryCharge,
+                              )}
+                            </strong>
+                          </div>
+                        )}
+
+                        <div className="booking-price-total">
+                          <span>
+                            {priceInformation.ticketFarePending
+                              ? "Payable Now"
+                              : "Total Payable"}
+                          </span>
+                          <strong>
+                            {formatIndianCurrency(
+                              priceInformation.total,
+                            )}
+                          </strong>
+                        </div>
+                      </div>
+                    )}
+                </div>
               </div>
-            </div>
 
-            <div className="booking-help-card">
-              <MessageCircle size={24} />
-
-              <div>
-                <strong>
-                  Need Help Before Ordering?
-                </strong>
-
-                <p>
-                  Send your requirement through
-                  WhatsApp and we will guide you
-                  personally.
-                </p>
+              <div className="booking-help-card">
+                <MapPin size={24} />
+                <div>
+                  <strong>
+                    Delivery matched to the service
+                  </strong>
+                  <p>
+                    Only suitable delivery choices appear.
+                    Home delivery details remain hidden
+                    unless you select that option.
+                  </p>
+                </div>
+                <Link to="/contact">
+                  Need help?
+                  <ArrowRight size={17} />
+                </Link>
               </div>
-
-              <a
-                href={createWhatsAppLink(
-                  "Hello Kushi Digitals, I need help choosing the correct service.",
-                )}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Chat With Us
-                <ArrowRight size={17} />
-              </a>
-            </div>
-          </aside>
+            </aside>
+          </div>
         </div>
       </section>
-    </>
+    </div>
   );
 }
 

@@ -1,58 +1,13 @@
 import { useState } from "react";
 import { Expand, Image as ImageIcon, X } from "lucide-react";
 import PageHero from "../../components/PageHero";
-
-import premiumFrame from "../../assets/images/gallery/premium-frame.webp";
-import studioPortrait from "../../assets/images/gallery/studio-portrait.webp";
-import albumDesign from "../../assets/images/gallery/album-design.webp";
-import passportPhotos from "../../assets/images/gallery/passport-photos.webp";
-import digitalEditing from "../../assets/images/gallery/digital-editing.webp";
-
-const galleryItems = [
-  {
-    image: premiumFrame,
-    title: "Premium Family Frame",
-    category: "Frames",
-    description:
-      "Elegant customized family frame with premium finishing.",
-  },
-  {
-    image: studioPortrait,
-    title: "Professional Studio Portrait",
-    category: "Photography",
-    description:
-      "Soft studio lighting with premium portrait retouching.",
-  },
-  {
-    image: albumDesign,
-    title: "Wedding Album Design",
-    category: "Albums",
-    description:
-      "Modern wedding album layout with cinematic storytelling.",
-  },
-  {
-    image: passportPhotos,
-    title: "Passport Photo Sheet",
-    category: "Passport Photos",
-    description:
-      "Clean background, accurate sizing and professional output.",
-  },
-  {
-    image: digitalEditing,
-    title: "Digital Photo Editing",
-    category: "Editing",
-    description:
-      "Before-and-after restoration and professional color enhancement.",
-  },
-];
+import { galleryItems } from "../../config/galleryItems";
 
 const filters = [
   "All",
-  "Frames",
-  "Photography",
-  "Albums",
-  "Passport Photos",
-  "Editing",
+  "Studio Service",
+  "Photo Service",
+  "Online Service",
 ];
 
 function Gallery() {
@@ -72,7 +27,7 @@ function Gallery() {
         eyebrow="Creative Showcase"
         title="A Glimpse Of Our"
         highlight="Premium Work"
-        description="Explore Kushi Digitals photography, frames, albums, passport photos and professional digital editing services."
+        description="Explore Kushi Digitals passport photos, photo frames, restoration, PAN card assistance, travel booking and print support."
       />
 
       <section className="page-section">
@@ -86,6 +41,7 @@ function Gallery() {
                   activeFilter === filter ? "active" : ""
                 }`}
                 onClick={() => setActiveFilter(filter)}
+                aria-pressed={activeFilter === filter}
               >
                 {filter}
               </button>
@@ -93,20 +49,22 @@ function Gallery() {
           </div>
 
           <div className="real-gallery-grid">
-            {filteredItems.map((item, index) => (
+            {filteredItems.map((item) => (
               <article
-                className={`real-gallery-card ${
-                  index === 0 ? "real-gallery-featured" : ""
-                }`}
-                key={item.title}
+                className={`real-gallery-card editorial-gallery-card gallery-card--${item.orientation} gallery-card--${item.size} gallery-card--${item.overlayTone}-overlay`}
+                key={item.id}
+                style={{
+                  "--gallery-object-position": item.objectPosition,
+                  "--gallery-object-fit": item.objectFit,
+                }}
               >
                 <img
                   src={item.image}
-                  alt={item.title}
+                  alt={item.alt}
                   loading="lazy"
                 />
 
-                <div className="real-gallery-overlay">
+                <div className="real-gallery-overlay editorial-gallery-overlay">
                   <span>{item.category}</span>
                   <h2>{item.title}</h2>
                   <p>{item.description}</p>
@@ -157,7 +115,7 @@ function Gallery() {
           >
             <img
               src={selectedImage.image}
-              alt={selectedImage.title}
+              alt={selectedImage.alt}
             />
 
             <div>

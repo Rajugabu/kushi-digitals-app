@@ -1,170 +1,111 @@
 import {
-  BookOpen,
-  Camera,
   Frame,
   IdCard,
-  Monitor,
-  PlusCircle,
+  Printer,
   Sparkles,
+  Ticket,
 } from "lucide-react";
 
-import otherServiceImage from "../assets/hero.png";
-import albumDesignImage from "../assets/images/gallery/album-design.webp";
-import digitalEditingImage from "../assets/images/gallery/digital-editing.webp";
+// TODO: Replace with Travel Ticket Booking image
+import travelTicketBookingImage from "../assets/images/gallery/album-design.webp";
+// TODO: Replace with PAN Card Services image
+import panCardServicesImage from "../assets/images/gallery/digital-editing.webp";
 import passportPhotosImage from "../assets/images/gallery/passport-photos.webp";
 import premiumFrameImage from "../assets/images/gallery/premium-frame.webp";
 import restorationImage from "../assets/images/gallery/restoration-before-after.webp";
-import studioPortraitImage from "../assets/images/gallery/studio-portrait.webp";
+import laminationsPrintImage from "../assets/images/gallery/print-lamination-support.webp";
 
 export const servicesData = [
   {
-    id: "passport-photos",
-    name: "Passport Photos",
+    id: "passport-size-photos",
+    number: "01",
+    name: "Passport Size Photos",
+    title: "Passport Size Photos",
+    category: "Studio Services",
+    tag: "STUDIO SERVICE",
     image: passportPhotosImage,
-    imageAlt: "Professionally prepared passport photo sheet",
+    imageAlt: "Professionally prepared passport-size photo sheet",
     icon: IdCard,
-    title: "Passport Photos",
-    shortDescription:
-      "Professional passport and stamp-size photo sheets.",
+    homeDescription:
+      "Professional passport and ID photos with correct sizing and clear finishing.",
     description:
-      "Professionally captured and edited passport-size photographs with accurate sizing, clean backgrounds and premium printing.",
-    tag: "Quick Service",
-    price: "₹50",
-    priceLabel: "Starting From",
-    benefits: [
-      "4 passport photos from ₹50",
-      "8 passport photos from ₹80",
-      "Professional studio lighting",
-      "Background correction",
-      "Accurate passport sizing",
-    ],
+      "Professional passport and ID photos with correct sizing, clear background and quality finishing.",
+  },
+  {
+    id: "photo-frames",
+    number: "02",
+    name: "Photo Frames",
+    title: "Photo Frames",
+    category: "Studio Services",
+    tag: "STUDIO SERVICE",
+    image: premiumFrameImage,
+    imageAlt: "Customized premium family photo frame",
+    icon: Frame,
+    homeDescription:
+      "Elegant customized frames for family, wedding and special memories.",
+    description:
+      "Customized photo frames for family portraits, weddings, birthdays and memorable occasions.",
   },
   {
     id: "photo-restoration",
+    number: "03",
     name: "Photo Restoration",
+    title: "Photo Restoration",
+    category: "Studio Services",
+    tag: "PHOTO SERVICE",
     image: restorationImage,
     imageAlt: "Before and after example of an old photo restoration",
     icon: Sparkles,
-    title: "Photo Restoration",
-    shortDescription:
-      "Restore old, damaged or faded photos digitally.",
+    homeDescription:
+      "Restore old, damaged or faded photos with clarity, detail and care.",
     description:
-      "Restore faded, scratched, torn, blurred or damaged photographs while preserving the natural identity and original memory.",
-    tag: "AI Enhanced",
-    price: "₹199",
-    priceLabel: "Starting From",
-    benefits: [
-      "Damage and scratch removal",
-      "Natural face enhancement",
-      "Color and clarity correction",
-      "High-resolution output",
-    ],
+      "Restore old, damaged, faded or scratched photos and preserve important memories.",
   },
   {
-    id: "premium-frames",
-    name: "Premium Frames",
-    image: premiumFrameImage,
-    imageAlt: "Premium framed family portrait",
-    icon: Frame,
-    title: "Premium Frames",
-    shortDescription:
-      "Premium photo frames in standard and custom sizes.",
+    id: "pan-card-services",
+    number: "04",
+    name: "PAN Card Services",
+    title: "PAN Card Services",
+    category: "Online & Application Services",
+    tag: "ONLINE SERVICE",
+    image: panCardServicesImage,
+    imageAlt: "PAN card application and correction assistance",
+    icon: IdCard,
+    homeDescription:
+      "PAN card application, correction and related online assistance.",
     description:
-      "Beautiful customized frames for family portraits, weddings, birthdays, memorials and special occasions.",
-    tag: "Premium",
-    price: "₹400",
-    priceLabel: "Starting From",
-    benefits: [
-      "Multiple frame sizes",
-      "PVC, MDF and Acrylic options",
-      "Premium finishing",
-      "Custom photo layouts",
-    ],
+      "Assistance for new PAN card applications, corrections and related online support.",
   },
   {
-    id: "album-designing",
-    name: "Album Designing",
-    image: albumDesignImage,
-    imageAlt: "Professionally designed wedding photo album",
-    icon: BookOpen,
-    title: "Album Designing",
-    shortDescription:
-      "Professional wedding and event album designing.",
+    id: "travel-ticket-booking",
+    number: "05",
+    name: "Travel Ticket Booking",
+    title: "Travel Ticket Booking",
+    category: "Online & Application Services",
+    tag: "ONLINE SERVICE",
+    image: travelTicketBookingImage,
+    imageAlt: "Train, bus and flight ticket booking assistance",
+    icon: Ticket,
+    homeDescription:
+      "Train, bus and flight ticket booking assistance.",
     description:
-      "Creative album layouts for weddings, engagements, birthdays, functions and family celebrations.",
-    tag: "Creative Design",
-    price: "Custom Quote",
-    priceLabel: "Pricing",
-    benefits: [
-      "Modern page layouts",
-      "Professional color balance",
-      "Story-based sequencing",
-      "Print-ready album files",
-    ],
+      "Assistance for train, bus and flight ticket booking based on customer travel requirements.",
   },
   {
-    id: "photography",
-    name: "Photography",
-    image: studioPortraitImage,
-    imageAlt: "Professional studio portrait",
-    icon: Camera,
-    title: "Photography",
-    shortDescription:
-      "Photography for weddings, birthdays, events and studio shoots.",
+    id: "laminations-print-support",
+    number: "06",
+    name: "Laminations & Print Support",
+    title: "Laminations & Print Support",
+    category: "Studio Services",
+    tag: "STUDIO SERVICE",
+    image: laminationsPrintImage,
+    imageAlt:
+      "Printer, documents, photo prints and lamination materials arranged in a studio",
+    icon: Printer,
+    homeDescription:
+      "Clean lamination and quality printing support for documents and photos.",
     description:
-      "Quality photography services focused on natural expressions, memorable moments and polished results.",
-    tag: "Studio Quality",
-    price: "Custom Quote",
-    priceLabel: "Pricing",
-    benefits: [
-      "Studio portraits",
-      "Family photography",
-      "Event coverage",
-      "Professional editing",
-    ],
-  },
-  {
-    id: "digital-services",
-    name: "Digital Services",
-    image: digitalEditingImage,
-    imageAlt: "Digital photo editing workspace",
-    icon: Monitor,
-    title: "Digital Services",
-    shortDescription:
-      "Online and digital service support for your requirements.",
-    description:
-      "Convenient digital assistance for photo editing, background changes, resizing and print preparation.",
-    tag: "All In One",
-    price: "₹99",
-    priceLabel: "Starting From",
-    benefits: [
-      "Background replacement",
-      "Photo resizing",
-      "Digital file delivery",
-      "Print preparation",
-    ],
-  },
-  {
-    id: "other-service",
-    name: "Other Service",
-    image: otherServiceImage,
-    imageAlt: "Abstract Kushi Digitals brand artwork",
-    imageStyle: "contain",
-    icon: PlusCircle,
-    title: "Other Service",
-    shortDescription:
-      "Request any custom service not listed above.",
-    description:
-      "Tell us about a custom photography, print or digital requirement and our team will guide you personally.",
-    tag: "Custom Request",
-    price: "Custom Quote",
-    priceLabel: "Pricing",
-    benefits: [
-      "Flexible custom requirements",
-      "Personal guidance",
-      "Digital and print options",
-      "Clear quote before work begins",
-    ],
+      "Lamination, document printing, photo printing and basic Xerox support with neat finishing.",
   },
 ];
 

@@ -1,5 +1,6 @@
 export const businessDetails = {
   name: "Kushi Digitals",
+  tagline: "Photography & Digital Studio",
 
   phoneDisplay: "+91 7337471733",
   phoneNumber: "7337471733",
@@ -7,6 +8,7 @@ export const businessDetails = {
 
   whatsappDisplay: "+91 7337471733",
   whatsappNumber: "917337471733",
+  whatsappUrl: "https://wa.me/917337471733",
 
   email: "kushidigitals8@gmail.com",
   emailHref: "mailto:kushidigitals8@gmail.com",
@@ -17,7 +19,12 @@ export const businessDetails = {
     district: "Vizianagaram District",
     state: "Andhra Pradesh",
     pincode: "535216",
+    display:
+      "Reddykancheru Village, Bhogapuram Mandal, Vizianagaram District, Andhra Pradesh – 535216",
   },
+
+  mapsUrl:
+    "https://www.google.com/maps/search/?api=1&query=Reddykancheru%20Village%2C%20Bhogapuram%20Mandal%2C%20Vizianagaram%20District%2C%20Andhra%20Pradesh%20535216",
 
   socialLinks: {
     instagram:

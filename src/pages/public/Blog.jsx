@@ -136,8 +136,8 @@ function Blog() {
   return (
     <>
       <SEO
-        title="Kushi Digitals Blog | Photography Guides & Studio Insights"
-        description="Photography, passport photo, restoration, frame, album and digital service guides from Kushi Digitals."
+        title="Kushi Digitals Blog | Service Guides & Studio Insights"
+        description="Passport photo, photo frame, restoration, PAN card, travel booking, lamination and print guides from Kushi Digitals."
         canonical={`${BLOG_SITE_URL}/blog`}
       />
 
@@ -159,8 +159,8 @@ function Blog() {
           <p>
             Practical guidance on photography,
             passport photos, restoration,
-            premium frames, album designing and
-            modern digital services.
+            premium frames, PAN card services and
+            travel ticket booking.
           </p>
         </div>
       </section>

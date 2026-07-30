@@ -365,6 +365,12 @@ function Orders() {
         order.service
           ?.toLowerCase()
           .includes(term) ||
+        order.service_category
+          ?.toLowerCase()
+          .includes(term) ||
+        order.invoice_number
+          ?.toLowerCase()
+          .includes(term) ||
         order.status
           ?.toLowerCase()
           .includes(term) ||
@@ -433,6 +439,13 @@ function Orders() {
       .toUpperCase();
   };
 
+  const getOrderDisplayId = (order) => {
+    return (
+      order.invoice_number ||
+      `KD-${getShortOrderId(order.id)}`
+    );
+  };
+
   const formatPrice = (price) => {
     if (
       price === null ||
@@ -465,6 +478,10 @@ function Orders() {
       bank_transfer: "Bank Transfer",
       card: "Card",
       other: "Other",
+      razorpay: "Pay Online with Razorpay",
+      cash_on_delivery: "Cash on Delivery",
+      pay_at_studio: "Pay at Studio",
+      pay_later: "Pay Later After Confirmation",
     };
 
     return labels[method] || "Not Selected";
@@ -728,7 +745,7 @@ Please check and guide me.
                   event.target.value,
                 )
               }
-              placeholder="Search by order ID or service..."
+              placeholder="Search invoice, category or service..."
               aria-label="Search orders"
             />
           </div>
@@ -765,12 +782,19 @@ Please check and guide me.
                   >
                     <div className="customer-order-main">
                       <span>
-                        KD-{shortOrderId}
+                        {order.invoice_number ||
+                          `KD-${shortOrderId}`}
                       </span>
 
                       <h3>
                         {order.service}
                       </h3>
+
+                      {order.service_category && (
+                        <small className="customer-order-category">
+                          {order.service_category}
+                        </small>
+                      )}
 
                       <p>
                         {formatDate(
@@ -809,6 +833,18 @@ Please check and guide me.
                       <small>
                         {order.delivery_type}
                       </small>
+
+                      <span
+                        className={`customer-payment-badge ${
+                          order.payment_status ||
+                          "pending"
+                        }`}
+                      >
+                        Payment{" "}
+                        {getPaymentStatusLabel(
+                          order.payment_status,
+                        )}
+                      </span>
                     </div>
 
                     <button
@@ -875,9 +911,9 @@ Please check and guide me.
             <header className="customer-order-modal-header">
               <div>
                 <span>
-                  ORDER KD-
-                  {getShortOrderId(
-                    selectedOrder.id,
+                  ORDER{" "}
+                  {getOrderDisplayId(
+                    selectedOrder,
                   )}
                 </span>
 
@@ -970,6 +1006,18 @@ Please check and guide me.
               )}
 
               <div className="customer-order-detail-grid">
+                <article>
+                  <FileText size={19} />
+
+                  <div>
+                    <span>Service Category</span>
+                    <strong>
+                      {selectedOrder.service_category ||
+                        "General Service"}
+                    </strong>
+                  </div>
+                </article>
+
                 <article>
                   <PackageCheck size={19} />
 

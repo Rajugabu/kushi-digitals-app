@@ -72,6 +72,22 @@ const paymentMethods = [
   { value: "bank_transfer", label: "Bank Transfer" },
   { value: "card", label: "Card" },
   { value: "other", label: "Other" },
+  {
+    value: "razorpay",
+    label: "Pay Online with Razorpay",
+  },
+  {
+    value: "cash_on_delivery",
+    label: "Cash on Delivery",
+  },
+  {
+    value: "pay_at_studio",
+    label: "Pay at Studio",
+  },
+  {
+    value: "pay_later",
+    label: "Pay Later After Confirmation",
+  },
 ];
 
 function AdminOrders() {
@@ -352,6 +368,8 @@ function AdminOrders() {
   };
 
   useEffect(() => {
+    // Initial Supabase synchronization is intentionally triggered on mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadOrders();
   }, []);
 
@@ -360,6 +378,8 @@ function AdminOrders() {
       URL.createObjectURL(file),
     );
 
+    // Object URL lifecycle is synchronized with the selected File objects.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCompletedPreviewUrls(urls);
 
     return () => {

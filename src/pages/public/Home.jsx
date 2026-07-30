@@ -1,312 +1,330 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
   Camera,
   CheckCircle2,
-  Frame,
-  Headphones,
+  Clock3,
+  HeartHandshake,
   Image,
-  Palette,
+  MessageCircle,
+  Paintbrush,
   Quote,
-  Share2,
   ShieldCheck,
   Sparkles,
   Star,
   Upload,
-  Users,
-  Wallet,
+  WandSparkles,
   Zap,
 } from "lucide-react";
-import ServiceCard from "../../components/ServiceCard";
-import LatestBlogSection from "../../components/blog/LatestBlogSection";
+import { homepageGalleryItems } from "../../config/galleryItems";
 import { servicesData } from "../../config/services";
 
+// TODO: Replace with Travel Ticket Booking image
+import travelTicketBookingImage from "../../assets/images/gallery/album-design.webp";
+// TODO: Replace with PAN Card Services image
+import panCardServicesImage from "../../assets/images/gallery/digital-editing.webp";
+import passportPhotosImage from "../../assets/images/gallery/passport-photos.webp";
+import premiumFrameImage from "../../assets/images/gallery/premium-frame.webp";
+import restorationImage from "../../assets/images/gallery/restoration-before-after.webp";
+import studioPortraitImage from "../../assets/images/gallery/studio-portrait.webp";
 
-const processSteps = [
+const studioSlides = [
   {
-    icon: Upload,
-    number: "01",
-    title: "Share Your Requirement",
-    description:
-      "Choose a service and upload your photos or explain what you need.",
+    title: "Passport Size Photos",
+    label: "Quick studio service",
+    image: passportPhotosImage,
+    alt: "Professional passport-size photo sheet by Kushi Digitals",
+    note: "Correct sizing. Clear finishing.",
   },
   {
-    icon: Palette,
-    number: "02",
-    title: "We Create the Magic",
+    title: "Photo Frames",
+    label: "Premium finishing",
+    image: premiumFrameImage,
+    alt: "Premium framed family portrait",
+    note: "Made for memories that matter.",
+  },
+  {
+    title: "Photo Restoration",
+    label: "Careful restoration",
+    image: restorationImage,
+    alt: "Before and after restoration of an old family photograph",
+    note: "Old memories, beautifully renewed.",
+  },
+  {
+    title: "PAN Card Services",
+    label: "Online application support",
+    image: panCardServicesImage,
+    alt: "PAN card online application assistance",
+    note: "Application and correction assistance.",
+  },
+  {
+    title: "Travel Ticket Booking",
+    label: "Travel booking assistance",
+    image: travelTicketBookingImage,
+    alt: "Train, bus and flight ticket booking assistance",
+    note: "Plan journeys with practical support.",
+  },
+  {
+    title: "Laminations & Print Support",
+    label: "Clean print support",
+    image: studioPortraitImage,
+    alt: "Premium studio portrait prepared for print",
+    note: "Neat output, ready to preserve.",
+  },
+];
+
+const trustHighlights = [
+  { icon: WandSparkles, title: "Studio Quality Editing", detail: "Care in every detail" },
+  { icon: Zap, title: "Fast Service", detail: "Clear, timely support" },
+  { icon: ShieldCheck, title: "Premium Finishing", detail: "Neat professional output" },
+  { icon: HeartHandshake, title: "Trusted Local Studio", detail: "Personal guidance" },
+];
+
+const studioBenefits = [
+  {
+    icon: Sparkles,
+    title: "Premium Quality Output",
     description:
-      "Our team carefully edits, designs and prepares your order.",
+      "Careful color, detail and finishing for results you will be proud to keep.",
+  },
+  {
+    icon: Clock3,
+    title: "Fast & Reliable Service",
+    description:
+      "Clear timelines, responsive updates and dependable support from start to finish.",
+  },
+  {
+    icon: HeartHandshake,
+    title: "Personalized Studio Support",
+    description:
+      "Friendly guidance shaped around your photo, occasion and preferred output.",
   },
   {
     icon: CheckCircle2,
-    number: "03",
-    title: "Review & Receive",
+    title: "Affordable & Neat Finishing",
     description:
-      "Review the result and receive your completed digital or printed order.",
+      "Thoughtful service and professional presentation at practical local pricing.",
+  },
+];
+
+const processSteps = [
+  {
+    number: "01",
+    icon: Upload,
+    title: "Share Your Requirement",
+    description:
+      "Tell us what you need and share the photos, size or occasion details.",
+  },
+  {
+    number: "02",
+    icon: Paintbrush,
+    title: "We Design, Edit & Prepare",
+    description:
+      "Our studio carefully prepares your design, edit, frame or print output.",
+  },
+  {
+    number: "03",
+    icon: CheckCircle2,
+    title: "Receive Your Final Output",
+    description:
+      "Review the completed work and receive your digital or finished output.",
   },
 ];
 
 const testimonials = [
   {
     name: "Suresh Kumar",
-    role: "Photo Restoration Customer",
+    service: "Photo Restoration",
     review:
-      "My old family photo was almost completely damaged. Kushi Digitals restored it beautifully with natural details.",
+      "The old family photo was restored with natural detail. The result felt careful and respectful.",
   },
   {
-    name: "Lakshmi",
-    role: "Premium Frame Customer",
+    name: "Lakshmi Devi",
+    service: "Photo Frames",
     review:
-      "The frame quality and finishing were excellent. The ordering experience was simple and professional.",
+      "The frame quality and finishing were excellent. Everything looked clean and beautifully presented.",
   },
   {
     name: "Ravi Teja",
-    role: "Album Design Customer",
+    service: "Travel Ticket Booking",
     review:
-      "Clean designs, good communication and timely delivery. The album looked premium and modern.",
+      "Clear guidance, careful passenger details and timely booking support. The process was simple.",
   },
 ];
 
 function Home() {
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
+  const activeSlide = studioSlides[activeSlideIndex];
+
+  useEffect(() => {
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    if (reduceMotion) {
+      return undefined;
+    }
+
+    const slideTimer = window.setInterval(() => {
+      setActiveSlideIndex(
+        (currentIndex) => (currentIndex + 1) % studioSlides.length,
+      );
+    }, 5200);
+
+    return () => window.clearInterval(slideTimer);
+  }, []);
+
   return (
-    <div className="home-page">
-      <section className="hero-section">
-        <div className="hero-orb hero-orb-one" />
-        <div className="hero-orb hero-orb-two" />
+    <div className="studio-home">
+      <section className="studio-hero">
+        <div className="studio-hero-grid" aria-hidden="true" />
+        <div className="studio-hero-glow studio-hero-glow-purple" aria-hidden="true" />
+        <div className="studio-hero-glow studio-hero-glow-cyan" aria-hidden="true" />
 
-        <div className="container hero-grid">
-          <div className="hero-copy">
-            <div className="eyebrow">
-              <Sparkles size={16} />
-              <span>Premium Photography & Digital Studio</span>
+        <div className="container studio-hero-layout">
+          <div className="studio-hero-copy">
+            <div className="studio-eyebrow">
+              <Sparkles size={15} />
+              <span>PREMIUM PHOTO STUDIO SERVICES</span>
             </div>
 
-            <h1 className="hero-title">
-  <span className="hero-title-line">
-    Turning Your Beautiful
-  </span>
+            <h1 className="studio-hero-title">Kushi Digitals</h1>
 
-  <span className="hero-title-line">
-    Moments Into
-  </span>
-
-  <span className="hero-title-line hero-title-highlight gradient-text">
-    Timeless Memories.
-  </span>
-</h1>
-
-            <p className="hero-description">
-              Professional photography, photo restoration, passport
-              photos, premium frames, album designing and modern digital
-              services—all in one trusted place.
+            <p className="studio-hero-description">
+              Passport photos, photo restoration, premium frames, PAN card
+              services and travel ticket booking with studio-level care.
             </p>
-
-            <div className="hero-actions">
-              <Link to="/services" className="primary-button">
-                Explore Services
-                <ArrowRight size={19} />
-              </Link>
-
-              <Link to="/contact" className="secondary-button">
-                Contact Studio
-              </Link>
-            </div>
-
-            <div className="hero-trust-row">
-              <div className="avatar-stack">
-                <span className="customer-avatar">K</span>
-                <span className="customer-avatar">S</span>
-                <span className="customer-avatar">R</span>
-                <span className="customer-avatar">+</span>
-              </div>
-
-              <div>
-                <div className="trust-rating">
-                  <Star size={16} fill="currentColor" />
-                  <Star size={16} fill="currentColor" />
-                  <Star size={16} fill="currentColor" />
-                  <Star size={16} fill="currentColor" />
-                  <Star size={16} fill="currentColor" />
-                </div>
-
-                <p>Trusted by happy local customers</p>
-              </div>
-            </div>
           </div>
 
-          <div className="hero-visual" aria-label="Kushi Digitals services">
-            <div className="visual-glow" />
-            <div className="visual-orbit visual-orbit-one" />
-            <div className="visual-orbit visual-orbit-two" />
-
-            <div className="studio-preview-card">
-              <div className="studio-card-header">
+          <div className="studio-showcase-shell">
+            <div className="studio-showcase">
+              <div className="studio-showcase-topbar">
                 <div>
                   <span className="studio-live-dot" />
-                  <span>Creative Studio</span>
+                  Studio showcase
                 </div>
-
-                <Sparkles size={18} />
+                <span>{String(activeSlideIndex + 1).padStart(2, "0")} / 06</span>
               </div>
 
-              <div className="studio-camera-area">
-                <div className="camera-ring camera-ring-outer">
-                  <div className="camera-ring camera-ring-inner">
-                    <Camera size={64} strokeWidth={1.5} />
-                  </div>
-                </div>
+              <div className="studio-slide" aria-live="polite">
+                <img
+                  key={activeSlide.image}
+                  src={activeSlide.image}
+                  alt={activeSlide.alt}
+                  fetchPriority={activeSlideIndex === 0 ? "high" : "auto"}
+                />
 
-                <span className="focus-corner focus-top-left" />
-                <span className="focus-corner focus-top-right" />
-                <span className="focus-corner focus-bottom-left" />
-                <span className="focus-corner focus-bottom-right" />
-              </div>
+                <div className="studio-slide-shade" />
 
-              <div className="studio-card-footer">
-                <div>
-                  <span>Premium Quality</span>
-                  <strong>Photo Perfection</strong>
-                </div>
-
-                <div className="quality-badge">
-                  <ShieldCheck size={17} />
-                  HD
+                <div className="studio-slide-copy">
+                  <span>{activeSlide.label}</span>
+                  <h2>{activeSlide.title}</h2>
+                  <p>{activeSlide.note}</p>
                 </div>
               </div>
-            </div>
 
-            <div className="floating-feature floating-feature-one">
-              <div className="floating-feature-icon">
-                <Sparkles size={20} />
-              </div>
-              <div>
-                <span>Old Photo</span>
-                <strong>Restored</strong>
-              </div>
-            </div>
-
-            <div className="floating-feature floating-feature-two">
-              <div className="floating-feature-icon cyan">
-                <Frame size={20} />
-              </div>
-              <div>
-                <span>Custom Frame</span>
-                <strong>Ready</strong>
-              </div>
-            </div>
-
-            <div className="floating-feature floating-feature-three">
-              <div className="floating-feature-icon pink">
-                <Zap size={20} />
-              </div>
-              <div>
-                <span>Fast Service</span>
-                <strong>Available</strong>
+              <div className="studio-slide-controls" aria-label="Studio service slideshow">
+                {studioSlides.map((slide, index) => (
+                  <button
+                    type="button"
+                    key={slide.title}
+                    className={index === activeSlideIndex ? "active" : ""}
+                    aria-label={`Show ${slide.title}`}
+                    aria-current={index === activeSlideIndex ? "true" : undefined}
+                    onClick={() => setActiveSlideIndex(index)}
+                  >
+                    <span />
+                  </button>
+                ))}
               </div>
             </div>
           </div>
-        </div>
-      </section>
 
-      <section className="stats-strip">
-        <div className="container stats-grid">
-          <div className="stat-item">
-            <strong>Premium</strong>
-            <span>Studio Quality</span>
-          </div>
-
-          <div className="stat-item">
-            <strong>Fast</strong>
-            <span>Order Processing</span>
-          </div>
-
-          <div className="stat-item">
-            <strong>Secure</strong>
-            <span>Photo Handling</span>
-          </div>
-
-          <div className="stat-item">
-            <strong>Friendly</strong>
-            <span>Customer Support</span>
-          </div>
-        </div>
-      </section>
-
-      <section className="section-shell services-preview-section">
-        <div className="container">
-          <div className="section-heading">
-            <div className="eyebrow">
-              <Camera size={16} />
-              <span>What We Do</span>
-            </div>
-
-            <h2>
-              Everything Your Memories
-              <span className="gradient-text"> Deserve</span>
-            </h2>
-
-            <p>
-              Professional services designed with care, creativity and
-              attention to every small detail.
-            </p>
-          </div>
-
-          <div className="premium-service-grid premium-service-grid--home">
-            {servicesData.slice(0, 6).map((service) => (
-              <ServiceCard
-                key={service.id}
-                service={service}
-                to={`/book-service?service=${encodeURIComponent(service.name)}`}
-                actionLabel="Select Service"
-                compact
-              />
-            ))}
-          </div>
-
-          <div className="section-action">
-            <Link to="/services" className="secondary-button">
-              View All Services
+          <div className="studio-hero-actions">
+            <Link to="/services" className="primary-button">
+              Explore Services
               <ArrowRight size={18} />
+            </Link>
+
+            <Link to="/book-service" className="secondary-button">
+              Book a Service
             </Link>
           </div>
         </div>
       </section>
 
-      <LatestBlogSection />
+      <section className="studio-trust-strip" aria-label="Studio highlights">
+        <div className="container studio-trust-grid">
+          {trustHighlights.map((highlight) => {
+            const HighlightIcon = highlight.icon;
 
-      <section className="section-shell process-section">
+            return (
+              <article key={highlight.title}>
+                <span>
+                  <HighlightIcon size={19} />
+                </span>
+                <div>
+                  <strong>{highlight.title}</strong>
+                  <small>{highlight.detail}</small>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="studio-section studio-services-section" id="studio-services">
         <div className="container">
-          <div className="section-heading">
-            <div className="eyebrow">
-              <Zap size={16} />
-              <span>Simple Process</span>
+          <div className="studio-section-heading">
+            <div className="studio-section-kicker">
+              <Camera size={15} />
+              <span>Crafted With Care</span>
             </div>
-
-            <h2>
-              From Your Photo To
-              <span className="gradient-text"> Perfect Result</span>
-            </h2>
-
+            <h2>Our Studio Services</h2>
             <p>
-              A simple, transparent and customer-friendly ordering
-              experience.
+              Everything you need for photos, frames, restoration and digital
+              finishing.
             </p>
           </div>
 
-          <div className="process-grid">
-            {processSteps.map((step) => {
-              const Icon = step.icon;
+          <div className="studio-services-grid">
+            {servicesData.map((service) => {
+              const ServiceIcon = service.icon;
 
               return (
-                <article className="process-card" key={step.number}>
-                  <span className="process-number">{step.number}</span>
-
-                  <div className="process-icon">
-                    <Icon size={27} />
+                <article className="studio-service-card" key={service.title}>
+                  <div className="studio-service-media">
+                    <img
+                      src={service.image}
+                      alt={service.imageAlt}
+                      loading="lazy"
+                    />
+                    <div
+                      className="studio-service-media-shade"
+                      aria-hidden="true"
+                    />
+                    <span className="studio-service-number">
+                      {service.number}
+                    </span>
                   </div>
 
-                  <h3>{step.title}</h3>
-                  <p>{step.description}</p>
+                  <div className="studio-service-body">
+                    <span className="studio-service-icon" aria-hidden="true">
+                      <ServiceIcon size={24} strokeWidth={1.8} />
+                    </span>
+
+                    <h3>{service.title}</h3>
+                    <p>{service.homeDescription}</p>
+
+                    <Link
+                      to={`/book-service?service=${encodeURIComponent(service.name)}`}
+                      className="studio-card-link"
+                    >
+                      Book Service
+                      <ArrowRight size={16} />
+                    </Link>
+                  </div>
                 </article>
               );
             })}
@@ -314,134 +332,172 @@ function Home() {
         </div>
       </section>
 
-      <section className="section-shell referral-section">
-        <div className="container">
-          <div className="referral-panel">
-            <div className="referral-copy">
-              <div className="eyebrow">
-                <Share2 size={16} />
-                <span>Refer & Earn</span>
-              </div>
+      <section className="studio-section studio-benefits-section">
+        <div className="studio-benefit-glow" aria-hidden="true" />
 
-              <h2>
-                Share Kushi Digitals.
-                <span className="gradient-text">
-                  {" "}
-                  Earn Real Rewards.
-                </span>
-              </h2>
-
-              <p>
-                Create your referral account, share your unique link and
-                earn commission when eligible customers successfully order
-                our services.
-              </p>
-
-              <div className="referral-features">
-                <div>
-                  <CheckCircle2 size={18} />
-                  Unique referral link
-                </div>
-
-                <div>
-                  <CheckCircle2 size={18} />
-                  Transparent earnings
-                </div>
-
-                <div>
-                  <CheckCircle2 size={18} />
-                  Wallet and withdrawals
-                </div>
-              </div>
-
-              <Link to="/referral" className="primary-button">
-                Explore Referral Program
-                <ArrowRight size={19} />
-              </Link>
+        <div className="container studio-benefits-layout">
+          <div className="studio-benefits-intro">
+            <div className="studio-section-kicker">
+              <ShieldCheck size={15} />
+              <span>Why Choose Us</span>
             </div>
 
-            <div className="referral-dashboard-preview">
-              <div className="dashboard-preview-header">
-                <div>
-                  <span>Referral Dashboard</span>
-                  <strong>Your Earnings</strong>
-                </div>
+            <h2>
+              Studio care you can
+              <span className="studio-gradient-text"> see and trust.</span>
+            </h2>
 
-                <div className="dashboard-status">
-                  <span />
-                  Active
-                </div>
-              </div>
+            <p>
+              Your photographs hold real meaning. We combine personal support,
+              careful workmanship and modern studio tools to finish them well.
+            </p>
 
-              <div className="earnings-card">
-                <span>Available Balance</span>
-                <strong>₹0.00</strong>
-                <small>Start sharing to earn rewards</small>
-              </div>
-
-              <div className="dashboard-mini-grid">
-                <div>
-                  <Users size={20} />
-                  <span>Total Referrals</span>
-                  <strong>0</strong>
-                </div>
-
-                <div>
-                  <Wallet size={20} />
-                  <span>Total Earnings</span>
-                  <strong>₹0</strong>
-                </div>
-              </div>
-
-              <div className="referral-link-preview">
-                <span>Your referral link</span>
-
-                <div>
-                  <p>kushidigitals.com/ref/yourcode</p>
-                  <Share2 size={17} />
-                </div>
+            <div className="studio-benefit-promise">
+              <span>
+                <Camera size={22} />
+              </span>
+              <div>
+                <strong>Premium Service Studio</strong>
+                <small>Thoughtful service for everyday and special memories.</small>
               </div>
             </div>
+          </div>
+
+          <div className="studio-benefits-grid">
+            {studioBenefits.map((benefit) => {
+              const BenefitIcon = benefit.icon;
+
+              return (
+                <article key={benefit.title}>
+                  <span>
+                    <BenefitIcon size={22} />
+                  </span>
+                  <h3>{benefit.title}</h3>
+                  <p>{benefit.description}</p>
+                </article>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      <section className="section-shell testimonials-section">
+      <section className="studio-section studio-gallery-section">
         <div className="container">
-          <div className="section-heading">
-            <div className="eyebrow">
-              <Star size={16} />
-              <span>Customer Stories</span>
+          <div className="studio-section-heading studio-section-heading-row">
+            <div>
+              <div className="studio-section-kicker">
+                <Image size={15} />
+                <span>Selected Studio Work</span>
+              </div>
+              <h2>Featured Works</h2>
+              <p>
+                A glimpse of the frames, portraits, restoration and service
+                visuals we prepare with care.
+              </p>
             </div>
 
-            <h2>
-              Trusted Work.
-              <span className="gradient-text"> Happy Memories.</span>
-            </h2>
+            <Link to="/gallery" className="secondary-button">
+              View Full Gallery
+              <ArrowRight size={17} />
+            </Link>
           </div>
 
-          <div className="testimonials-grid">
-            {testimonials.map((testimonial) => (
+          <div className="studio-gallery-grid">
+            {homepageGalleryItems.map((item) => (
               <article
-                className="testimonial-card"
-                key={testimonial.name}
+                className={`studio-gallery-card editorial-gallery-card gallery-card--${item.orientation} gallery-card--${item.size} gallery-card--${item.overlayTone}-overlay`}
+                key={item.id}
+                style={{
+                  "--gallery-object-position": item.objectPosition,
+                  "--gallery-object-fit": item.objectFit,
+                }}
               >
-                <Quote className="quote-icon" size={31} />
+                <img src={item.image} alt={item.alt} loading="lazy" />
+                <div className="studio-gallery-overlay editorial-gallery-overlay">
+                  <span>{item.category}</span>
+                  <h3>{item.title}</h3>
+                </div>
+              </article>
+            ))}
+          </div>
 
-                <div className="testimonial-stars">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star key={star} size={15} fill="currentColor" />
-                  ))}
+          <div className="studio-gallery-mobile-action">
+            <Link to="/gallery" className="secondary-button">
+              View Full Gallery
+              <ArrowRight size={17} />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="studio-section studio-process-section">
+        <div className="container">
+          <div className="studio-section-heading">
+            <div className="studio-section-kicker">
+              <Zap size={15} />
+              <span>Simple Process</span>
+            </div>
+            <h2>From requirement to final result.</h2>
+            <p>
+              A clear, personal process that keeps your photos and preferences
+              at the center.
+            </p>
+          </div>
+
+          <div className="studio-process-grid">
+            {processSteps.map((step, index) => {
+              const StepIcon = step.icon;
+
+              return (
+                <article className="studio-process-card" key={step.number}>
+                  <div className="studio-process-top">
+                    <span className="studio-process-icon">
+                      <StepIcon size={23} />
+                    </span>
+                    <span className="studio-process-number">{step.number}</span>
+                  </div>
+                  <h3>{step.title}</h3>
+                  <p>{step.description}</p>
+                  {index < processSteps.length - 1 && (
+                    <span className="studio-process-line" aria-hidden="true" />
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section className="studio-section studio-testimonials-section">
+        <div className="container">
+          <div className="studio-section-heading">
+            <div className="studio-section-kicker">
+              <Star size={15} />
+              <span>Customer Stories</span>
+            </div>
+            <h2>Trusted for the moments that matter.</h2>
+            <p>Serving customers with care, quality and timely delivery.</p>
+          </div>
+
+          <div className="studio-testimonials-grid">
+            {testimonials.map((testimonial) => (
+              <article className="studio-testimonial-card" key={testimonial.name}>
+                <div className="studio-testimonial-top">
+                  <Quote size={28} />
+                  <div aria-label="5 out of 5 stars">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star key={star} size={13} fill="currentColor" />
+                    ))}
+                  </div>
                 </div>
 
                 <p>“{testimonial.review}”</p>
 
-                <div className="testimonial-author">
+                <div className="studio-testimonial-author">
                   <span>{testimonial.name.charAt(0)}</span>
-
                   <div>
                     <strong>{testimonial.name}</strong>
-                    <small>{testimonial.role}</small>
+                    <small>{testimonial.service}</small>
                   </div>
                 </div>
               </article>
@@ -450,36 +506,35 @@ function Home() {
         </div>
       </section>
 
-      <section className="section-shell final-cta-section">
+      <section className="studio-cta-section">
         <div className="container">
-          <div className="final-cta-panel">
-            <div className="final-cta-icon">
-              <Image size={35} />
+          <div className="studio-cta-panel">
+            <div className="studio-cta-grid" aria-hidden="true" />
+            <div className="studio-cta-orb studio-cta-orb-purple" aria-hidden="true" />
+            <div className="studio-cta-orb studio-cta-orb-cyan" aria-hidden="true" />
+
+            <div className="studio-cta-icon">
+              <Camera size={28} />
             </div>
 
-            <div>
-              <span className="final-cta-label">
-                Your memories deserve the best
-              </span>
-
-              <h2>Ready To Create Something Beautiful?</h2>
-
+            <div className="studio-cta-copy">
+              <span>Let’s create something meaningful</span>
+              <h2>Ready to Turn Your Photos Into Beautiful Memories?</h2>
               <p>
-                Contact Kushi Digitals and turn your photos into
-                professionally finished memories.
+                Book your service with Kushi Digitals and get premium studio
+                support for photos, frames, PAN cards and travel bookings.
               </p>
             </div>
 
-            <div className="final-cta-actions">
-              <Link to="/contact" className="primary-button">
-                Get Started
+            <div className="studio-cta-actions">
+              <Link to="/book-service" className="primary-button">
+                Book a Service
                 <ArrowRight size={18} />
               </Link>
-
-              <div className="support-note">
-                <Headphones size={18} />
-                Friendly support available
-              </div>
+              <Link to="/contact" className="secondary-button">
+                <MessageCircle size={17} />
+                Contact Studio
+              </Link>
             </div>
           </div>
         </div>

@@ -137,7 +137,7 @@ function BlogPost() {
   const seoDescription =
     post?.seo_description ||
     post?.excerpt ||
-    "Photography and digital studio guidance from Kushi Digitals.";
+    "Practical studio service guidance from Kushi Digitals.";
   const jsonLd = useMemo(() => {
     if (!post) {
       return null;

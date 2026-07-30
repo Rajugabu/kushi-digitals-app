@@ -1,0 +1,405 @@
+.focused-services-page {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    #070a15;
+  background-size: 44px 44px;
+}
+
+.focused-services-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: clamp(104px, 12vw, 150px) 0 clamp(72px, 9vw, 110px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.focused-services-orb {
+  position: absolute;
+  width: 420px;
+  height: 420px;
+  border-radius: 50%;
+  filter: blur(110px);
+  opacity: 0.22;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.focused-services-orb-left {
+  top: -210px;
+  left: -150px;
+  background: #7c3aed;
+}
+
+.focused-services-orb-right {
+  right: -180px;
+  bottom: -240px;
+  background: #0891b2;
+}
+
+.focused-services-hero-content {
+  display: flex;
+  max-width: 850px;
+  align-items: center;
+  flex-direction: column;
+  text-align: center;
+}
+
+.focused-services-hero h1 {
+  max-width: 760px;
+  margin-top: 22px;
+  font-size: clamp(2.5rem, 5vw, 4.9rem);
+  line-height: 1.02;
+  letter-spacing: -0.055em;
+}
+
+.focused-services-hero-content > p {
+  max-width: 720px;
+  margin-top: 22px;
+  color: #93a0b5;
+  font-size: clamp(0.96rem, 1.4vw, 1.08rem);
+  line-height: 1.8;
+}
+
+.focused-services-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.focused-services-catalog {
+  position: relative;
+}
+
+.focused-services-heading {
+  max-width: 650px;
+  margin: 0 auto 38px;
+  text-align: center;
+}
+
+.focused-services-heading > span,
+.focused-services-cta-panel > div > span {
+  color: #67e8f9;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.focused-services-heading h2 {
+  margin-top: 10px;
+  font-size: clamp(1.9rem, 3vw, 2.8rem);
+  letter-spacing: -0.04em;
+}
+
+.focused-services-heading p {
+  margin-top: 12px;
+  color: #8491a6;
+  line-height: 1.75;
+}
+
+.focused-services-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.focused-service-card {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 480px;
+  overflow: hidden;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 100% 0, rgba(139, 92, 246, 0.09), transparent 35%),
+    rgba(10, 15, 29, 0.9);
+  box-shadow:
+    0 26px 70px rgba(0, 0, 0, 0.25),
+    inset 0 1px rgba(255, 255, 255, 0.04);
+  transition:
+    transform 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.focused-service-card::before {
+  position: absolute;
+  inset: 0 20% auto;
+  height: 1px;
+  background: linear-gradient(90deg, #8b5cf6, #22d3ee);
+  content: "";
+  opacity: 0.72;
+  z-index: 3;
+}
+
+.focused-service-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(139, 92, 246, 0.3);
+  box-shadow:
+    0 32px 80px rgba(0, 0, 0, 0.34),
+    0 0 40px rgba(34, 211, 238, 0.06);
+}
+
+.focused-service-media {
+  position: relative;
+  height: 245px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  background: #090d19;
+}
+
+.focused-service-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transition: transform 420ms ease;
+}
+
+.focused-service-card:hover .focused-service-media img {
+  transform: scale(1.035);
+}
+
+.focused-service-media-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, transparent 54%, rgba(7, 10, 21, 0.88) 100%),
+    linear-gradient(135deg, rgba(139, 92, 246, 0.1), transparent 45%);
+  pointer-events: none;
+}
+
+.focused-service-number {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(7, 10, 21, 0.7);
+  color: #e6eef8;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  backdrop-filter: blur(12px);
+}
+
+.focused-service-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 25px;
+}
+
+.focused-service-tag {
+  width: fit-content;
+  padding: 6px 9px;
+  border: 1px solid rgba(34, 211, 238, 0.15);
+  border-radius: 999px;
+  background: rgba(34, 211, 238, 0.055);
+  color: #67e8f9;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.focused-service-card h3 {
+  margin-top: 16px;
+  font-size: 1.2rem;
+  letter-spacing: -0.03em;
+}
+
+.focused-service-card p {
+  margin-top: 10px;
+  color: #8491a6;
+  font-size: 0.86rem;
+  line-height: 1.7;
+}
+
+.focused-service-link {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 7px;
+  margin-top: auto;
+  padding-top: 22px;
+  color: #c4b5fd;
+  font-size: 0.77rem;
+  font-weight: 800;
+  transition:
+    color 180ms ease,
+    gap 180ms ease;
+}
+
+.focused-service-link:hover {
+  gap: 10px;
+  color: #67e8f9;
+}
+
+.focused-services-process {
+  border-block: 1px solid rgba(255, 255, 255, 0.055);
+  background: rgba(9, 13, 26, 0.62);
+}
+
+.focused-process-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.focused-process-card {
+  min-width: 0;
+  padding: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 20px;
+  background: rgba(12, 17, 32, 0.72);
+}
+
+.focused-process-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.focused-process-card-top > span:last-child {
+  color: #364158;
+  font-size: 0.74rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+.focused-process-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 14px;
+  background: rgba(139, 92, 246, 0.08);
+  color: #c4b5fd;
+}
+
+.focused-process-card h3 {
+  margin-top: 20px;
+  font-size: 1.05rem;
+}
+
+.focused-process-card p {
+  margin-top: 9px;
+  color: #8491a6;
+  font-size: 0.84rem;
+  line-height: 1.68;
+}
+
+.focused-services-cta-panel {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+  padding: clamp(26px, 4vw, 42px);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 26px;
+  background:
+    radial-gradient(circle at 0 50%, rgba(139, 92, 246, 0.13), transparent 32%),
+    radial-gradient(circle at 100% 50%, rgba(34, 211, 238, 0.09), transparent 32%),
+    rgba(11, 16, 31, 0.88);
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.24);
+}
+
+.focused-services-cta-icon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: 18px;
+  background: rgba(34, 211, 238, 0.06);
+  color: #67e8f9;
+}
+
+.focused-services-cta-panel h2 {
+  margin-top: 7px;
+  font-size: clamp(1.65rem, 2.6vw, 2.3rem);
+  letter-spacing: -0.04em;
+}
+
+.focused-services-cta-panel p {
+  max-width: 680px;
+  margin-top: 9px;
+  color: #8794a9;
+  line-height: 1.7;
+}
+
+.focused-services-cta-panel .focused-services-actions {
+  margin-top: 0;
+  justify-content: flex-end;
+}
+
+@media (max-width: 980px) {
+  .focused-services-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .focused-services-cta-panel {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .focused-services-cta-panel .focused-services-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .focused-services-hero {
+    padding-top: 92px;
+  }
+
+  .focused-process-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .focused-services-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .focused-service-card {
+    min-height: 455px;
+  }
+
+  .focused-service-media {
+    height: 230px;
+  }
+
+  .focused-services-actions,
+  .focused-services-actions .primary-button,
+  .focused-services-actions .secondary-button {
+    width: 100%;
+  }
+
+  .focused-services-cta-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .focused-services-cta-panel .focused-services-actions {
+    grid-column: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .focused-service-card,
+  .focused-service-media img,
+  .focused-service-link {
+    transition: none;
+  }
+}

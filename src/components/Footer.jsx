@@ -17,12 +17,13 @@ import {
   businessDetails,
   createWhatsAppLink,
 } from "../config/business";
+import { servicesData } from "../config/services";
 
 const currentYear = new Date().getFullYear();
 
 function Footer() {
   const footerWhatsAppMessage =
-    "Hello Kushi Digitals, I visited your website and would like to know more about your photography and digital services.";
+    "Hello Kushi Digitals, I visited your website and would like to know more about your studio services.";
 
   return (
     <footer className="site-footer">
@@ -47,16 +48,15 @@ function Footer() {
               </span>
 
               <span className="brand-tagline">
-                Memories made timeless
+                Premium Service Studio
               </span>
             </span>
           </Link>
 
           <p className="footer-description">
-            Premium photography, passport photos, photo
-            restoration, customized frames, album designing
-            and modern digital services under one trusted
-            studio.
+            Passport photos, photo frames, restoration, PAN card
+            assistance, travel booking, laminations and print support
+            under one trusted studio.
           </p>
 
           <div className="social-links">
@@ -109,25 +109,14 @@ function Footer() {
           <h3>Services</h3>
 
           <div className="footer-links">
-            <Link to="/services">
-              Passport Photos
-            </Link>
-
-            <Link to="/services">
-              Photo Restoration
-            </Link>
-
-            <Link to="/services">
-              Premium Frames
-            </Link>
-
-            <Link to="/services">
-              Album Designing
-            </Link>
-
-            <Link to="/services">
-              Digital Services
-            </Link>
+            {servicesData.map((service) => (
+              <Link
+                to={`/book-service?service=${encodeURIComponent(service.name)}`}
+                key={service.id}
+              >
+                {service.name}
+              </Link>
+            ))}
           </div>
         </div>
 

@@ -1,2 +1,8 @@
 @import "./styles/global.css";
+@import "./styles/home.css";
+@import "./styles/gallery-editorial.css";
+@import "./styles/services-focused.css";
+@import "./styles/booking.css";
 @import "./styles/blog.css";
+@import "./styles/about.css";
+@import "./styles/contact.css";

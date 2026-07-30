@@ -1,5 +1,9 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import {
   ArrowRight,
   Eye,
@@ -18,6 +22,7 @@ import {
 const referralStorageKey = "kushi_pending_referral_code";
 
 function Login() {
+  const location = useLocation();
   const navigate = useNavigate();
 
   const [showPassword, setShowPassword] = useState(false);
@@ -103,9 +108,17 @@ function Login() {
 
       setMessageType("success");
 
+      const intendedDestination =
+        typeof location.state?.from === "string" &&
+        location.state.from.startsWith("/")
+          ? location.state.from
+          : null;
+
       window.setTimeout(() => {
         navigate(
-          role === "admin" ? "/admin" : "/dashboard",
+          role === "admin"
+            ? "/admin"
+            : intendedDestination || "/dashboard",
           { replace: true },
         );
       }, 700);
