@@ -33,6 +33,10 @@ import AdminBlog from "./pages/admin/AdminBlog";
 import AdminBlogEditor from "./pages/admin/AdminBlogEditor";
 import AdminBlogPreview from "./pages/admin/AdminBlogPreview";
 import Studio from "./pages/Studio";
+import PrivacyPolicy from "./pages/public/PrivacyPolicy";
+import Terms from "./pages/public/Terms";
+import RefundPolicy from "./pages/public/RefundPolicy";
+import ShippingPolicy from "./pages/public/ShippingPolicy";
 
 function App() {
   return (
@@ -48,9 +52,19 @@ function App() {
         <Route path="blog" element={<Blog />} />
         <Route path="blog/:slug" element={<BlogPost />} />
         <Route path="referral" element={<ComingSoon />} />
-        <Route path="privacy-policy" element={<ComingSoon />} />
-        <Route path="terms" element={<ComingSoon />} />
-        <Route path="refund-policy" element={<ComingSoon />} />
+        <Route
+  path="privacy-policy"
+  element={<PrivacyPolicy />}
+/>
+        <Route path="terms" element={<Terms />} />
+        <Route
+  path="refund-policy"
+  element={<RefundPolicy />}
+/>
+<Route
+  path="shipping-policy"
+  element={<ShippingPolicy />}
+/>
       </Route>
 
       <Route element={<AuthLayout />}>

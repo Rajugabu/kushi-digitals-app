@@ -185,18 +185,22 @@ function Footer() {
         </p>
 
         <div className="footer-policy-links">
-          <Link to="/privacy-policy">
-            Privacy Policy
-          </Link>
+  <Link to="/privacy-policy">
+    Privacy Policy
+  </Link>
 
-          <Link to="/terms">
-            Terms & Conditions
-          </Link>
+  <Link to="/terms">
+    Terms & Conditions
+  </Link>
 
-          <Link to="/refund-policy">
-            Refund Policy
-          </Link>
-        </div>
+  <Link to="/refund-policy">
+    Cancellation & Refund Policy
+  </Link>
+
+  <Link to="/shipping-policy">
+    Shipping & Delivery Policy
+  </Link>
+</div>
       </div>
     </footer>
   );

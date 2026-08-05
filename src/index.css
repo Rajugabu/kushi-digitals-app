@@ -7,3 +7,128 @@
 @import "./styles/about.css";
 @import "./styles/contact.css";
 @import "./styles/Studio.css";
+.legal-page {
+  min-height: 100vh;
+  background: #05070d;
+  color: #e8edf7;
+}
+
+.legal-hero {
+  padding: 90px 0 55px;
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(139, 92, 246, 0.18), transparent 45%);
+}
+
+.legal-hero-icon {
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background: rgba(139, 92, 246, 0.14);
+  color: #a78bfa;
+}
+
+.legal-hero span {
+  color: #a78bfa;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.78rem;
+}
+
+.legal-hero h1 {
+  margin: 10px 0 14px;
+  font-size: clamp(2.2rem, 5vw, 4rem);
+}
+
+.legal-hero p {
+  max-width: 760px;
+  margin: 0 auto 14px;
+  color: #aeb8cc;
+  line-height: 1.8;
+}
+
+.legal-hero small {
+  color: #7f8aa3;
+}
+
+.legal-content {
+  padding: 20px 0 90px;
+}
+
+.legal-content-card {
+  max-width: 960px;
+  padding: 40px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 24px;
+  background: rgba(13, 17, 28, 0.86);
+}
+
+.legal-content-card section + section {
+  margin-top: 34px;
+}
+
+.legal-content-card h2 {
+  margin-bottom: 12px;
+  font-size: 1.35rem;
+  color: #ffffff;
+}
+
+.legal-content-card p,
+.legal-content-card li {
+  color: #aeb8cc;
+  line-height: 1.8;
+}
+
+.legal-content-card ul {
+  padding-left: 22px;
+  margin-top: 12px;
+}
+
+.legal-content-card li + li {
+  margin-top: 8px;
+}
+
+.legal-contact-box {
+  margin-top: 18px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: 16px;
+  background: rgba(139, 92, 246, 0.08);
+}
+
+.legal-contact-box a {
+  color: #a78bfa;
+  text-decoration: none;
+}
+
+.legal-footer-links {
+  margin-top: 42px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.legal-footer-links a {
+  color: #a78bfa;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+@media (max-width: 700px) {
+  .legal-hero {
+    padding-top: 65px;
+  }
+
+  .legal-content-card {
+    padding: 24px 18px;
+    border-radius: 18px;
+  }
+}
