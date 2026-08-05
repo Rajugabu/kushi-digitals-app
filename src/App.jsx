@@ -32,6 +32,7 @@ import AdminReferrals from "./pages/admin/AdminReferrals";
 import AdminBlog from "./pages/admin/AdminBlog";
 import AdminBlogEditor from "./pages/admin/AdminBlogEditor";
 import AdminBlogPreview from "./pages/admin/AdminBlogPreview";
+import Studio from "./pages/Studio";
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
         <Route index element={<Home />} />
         <Route path="services" element={<Services />} />
         <Route path="gallery" element={<Gallery />} />
+        <Route path="studio" element={<Studio />} />
         <Route path="about" element={<About />} />
         <Route path="contact" element={<Contact />} />
         <Route path="book-service" element={<BookService />} />

@@ -1,0 +1,10 @@
+project_id = "kushi-digitals-app"
+
+[functions.create-studio-credit-order]
+verify_jwt = true
+
+[functions.verify-studio-credit-payment]
+verify_jwt = true
+
+[functions.razorpay-studio-webhook]
+verify_jwt = false

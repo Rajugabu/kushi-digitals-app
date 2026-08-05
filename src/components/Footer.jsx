@@ -99,6 +99,7 @@ function Footer() {
             <Link to="/">Home</Link>
             <Link to="/services">Our Services</Link>
             <Link to="/gallery">Gallery</Link>
+            <Link to="/studio">Design Studio</Link>
             <Link to="/blog">Blog</Link>
             <Link to="/about">About Us</Link>
             <Link to="/contact">Contact</Link>
