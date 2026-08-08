@@ -26,11 +26,11 @@ export function createImageProvider(): ImageProvider {
   }
 
   const requestedTimeout = Number(
-    Deno.env.get("STUDIO_PROVIDER_TIMEOUT_MS") || 240_000,
+    Deno.env.get("STUDIO_PROVIDER_TIMEOUT_MS") || 120_000,
   );
   const timeoutMs = Number.isFinite(requestedTimeout)
-    ? Math.min(Math.max(requestedTimeout, 30_000), 240_000)
-    : 240_000;
+    ? Math.min(Math.max(requestedTimeout, 30_000), 120_000)
+    : 120_000;
 
   return new OpenAIImageProvider({
     apiKey,

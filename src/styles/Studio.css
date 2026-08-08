@@ -1183,6 +1183,23 @@
   flex: 0 0 auto;
 }
 
+.studio-form-error > span {
+  flex: 1;
+}
+
+.studio-recovery-button {
+  display: block;
+  margin-top: 8px;
+  padding: 6px 9px;
+  border: 1px solid rgba(254, 202, 202, 0.32);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 .studio-credit-notice {
   display: flex;
   align-items: flex-start;
@@ -2327,5 +2344,510 @@
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+}
+
+/* =========================================================
+   KUSHI AI STUDIO — PREMIUM DYNAMIC TEMPLATE SHOWCASE
+   Added for reusable non-AI templates
+   ========================================================= */
+
+.studio-template-showcase {
+  position: relative;
+  padding: 88px 0 96px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background:
+    radial-gradient(circle at 18% 14%, rgba(212, 175, 55, 0.08), transparent 24%),
+    radial-gradient(circle at 82% 72%, rgba(246, 219, 123, 0.04), transparent 28%),
+    linear-gradient(180deg, rgba(8, 9, 13, 0.96), rgba(5, 7, 13, 0.99));
+}
+
+.studio-template-showcase::before {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size: 54px 54px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent 92%);
+  content: "";
+  pointer-events: none;
+}
+
+.studio-template-showcase > .container {
+  position: relative;
+  z-index: 1;
+}
+
+.studio-template-showcase .studio-kicker {
+  color: #d7b75a;
+}
+
+.studio-template-showcase .studio-section-heading h2 {
+  color: #fffaf0;
+}
+
+.studio-template-showcase .studio-section-heading p {
+  color: #938e82;
+}
+
+.studio-template-heading {
+  align-items: end;
+}
+
+.studio-view-all-templates {
+  display: inline-flex;
+  min-height: 42px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 15px;
+  border: 1px solid rgba(212, 175, 55, 0.24);
+  border-radius: 999px;
+  background: rgba(212, 175, 55, 0.06);
+  color: #e9d58f;
+  font-size: 0.7rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.studio-view-all-templates:hover {
+  transform: translateY(-2px);
+  border-color: rgba(246, 219, 123, 0.48);
+  background: rgba(212, 175, 55, 0.11);
+  box-shadow: 0 14px 34px rgba(212, 175, 55, 0.08);
+}
+
+.kushi-template-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.kushi-template-empty {
+  display: grid;
+  min-height: 260px;
+  place-items: center;
+  border: 1px dashed rgba(212, 175, 55, 0.18);
+  border-radius: 24px;
+  background: rgba(212, 175, 55, 0.025);
+  color: #8f8a7d;
+  text-align: center;
+}
+
+.kushi-template-empty p {
+  margin: 0;
+}
+
+.kushi-template-card {
+  --template-accent: #d4af37;
+  --template-accent-soft: rgba(212, 175, 55, 0.18);
+  --template-surface-start: #1a1408;
+  --template-surface-end: #0a0a0d;
+
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  flex-direction: column;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 24px;
+  outline: none;
+  background: linear-gradient(155deg, #151515, #0b0b0d);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow:
+    0 22px 54px rgba(0, 0, 0, 0.32),
+    inset 0 1px rgba(255, 255, 255, 0.045);
+  transition:
+    transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 220ms ease,
+    box-shadow 240ms ease;
+}
+
+.kushi-template-card:hover {
+  transform: translateY(-7px);
+  border-color: color-mix(in srgb, var(--template-accent) 58%, transparent);
+  box-shadow:
+    0 30px 72px rgba(0, 0, 0, 0.42),
+    0 0 34px var(--template-accent-soft),
+    inset 0 1px rgba(255, 255, 255, 0.07);
+}
+
+.kushi-template-card:focus-visible {
+  border-color: var(--template-accent);
+  box-shadow:
+    0 0 0 3px rgba(212, 175, 55, 0.16),
+    0 24px 58px rgba(0, 0, 0, 0.38);
+}
+
+.kushi-template-card__preview {
+  position: relative;
+  display: flex;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  flex-direction: column;
+  justify-content: flex-end;
+  background:
+    linear-gradient(to top, rgba(0, 0, 0, 0.72), transparent 58%),
+    linear-gradient(145deg, var(--template-surface-start), var(--template-surface-end));
+}
+
+.kushi-template-card__preview::before {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, 0.035), transparent 35%),
+    linear-gradient(to top, rgba(0, 0, 0, 0.38), transparent 42%);
+  content: "";
+  pointer-events: none;
+}
+
+.kushi-template-card__preview::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  border: 1px solid rgba(255, 255, 255, 0.045);
+  border-radius: inherit;
+  content: "";
+  pointer-events: none;
+}
+
+.kushi-template-card__glow {
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.kushi-template-card__glow--one {
+  top: -12%;
+  right: -12%;
+  width: 48%;
+  aspect-ratio: 1;
+  background: var(--template-accent-soft);
+  filter: blur(1px);
+}
+
+.kushi-template-card__glow--two {
+  bottom: 5%;
+  left: -15%;
+  width: 58%;
+  aspect-ratio: 1;
+  background: color-mix(in srgb, var(--template-accent) 14%, transparent);
+  filter: blur(4px);
+}
+
+.kushi-template-card__photo-slot {
+  position: absolute;
+  z-index: 2;
+  top: 13%;
+  left: 50%;
+  width: 66%;
+  aspect-ratio: 1 / 1.08;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 21px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.018)),
+    rgba(8, 8, 9, 0.36);
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.07),
+    0 18px 40px rgba(0, 0, 0, 0.18);
+  transform: translateX(-50%);
+  backdrop-filter: blur(4px);
+}
+
+.kushi-template-card__photo-slot::before {
+  position: absolute;
+  inset: 16%;
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  content: "";
+}
+
+.kushi-template-card__badge {
+  position: absolute;
+  z-index: 6;
+  top: 14px;
+  left: 14px;
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid rgba(246, 219, 123, 0.32);
+  border-radius: 999px;
+  background: rgba(8, 7, 4, 0.67);
+  color: #f6db7b;
+  font-size: 0.55rem;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+}
+
+.kushi-template-card__preview-content {
+  position: relative;
+  z-index: 4;
+  display: grid;
+  justify-items: center;
+  padding: 24px 22px 48px;
+  text-align: center;
+}
+
+.kushi-template-card__eyebrow {
+  color: color-mix(in srgb, var(--template-accent) 78%, white 22%);
+  font-size: 0.54rem;
+  font-weight: 850;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+
+.kushi-template-card__title {
+  max-width: 92%;
+  margin: 8px 0 0;
+  color: #ffffff;
+  font-size: clamp(1.05rem, 2vw, 1.34rem);
+  font-weight: 850;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+  text-shadow: 0 5px 24px rgba(0, 0, 0, 0.45);
+}
+
+.kushi-template-card__brand {
+  margin: 8px 0 0;
+  color: var(--template-accent);
+  font-size: 0.49rem;
+  font-weight: 850;
+  letter-spacing: 0.18em;
+}
+
+.kushi-template-card__category-pill {
+  position: absolute;
+  z-index: 5;
+  right: 14px;
+  bottom: 14px;
+  display: inline-flex;
+  max-width: calc(100% - 28px);
+  min-height: 27px;
+  align-items: center;
+  padding: 0 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.46);
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 0.54rem;
+  font-weight: 730;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  backdrop-filter: blur(12px);
+}
+
+.kushi-template-card__footer {
+  display: flex;
+  min-height: 92px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 15px 16px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.065);
+  background:
+    linear-gradient(120deg, rgba(212, 175, 55, 0.025), transparent 40%),
+    #0c0c0f;
+}
+
+.kushi-template-card__footer-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 4px;
+}
+
+.kushi-template-card__footer-copy strong {
+  overflow: hidden;
+  color: #f4f1e9;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kushi-template-card__footer-copy span {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #77736b;
+  font-size: 0.61rem;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.kushi-template-card__action {
+  display: inline-flex;
+  min-height: 34px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding: 0 11px;
+  border: 1px solid color-mix(in srgb, var(--template-accent) 36%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--template-accent) 8%, transparent);
+  color: color-mix(in srgb, var(--template-accent) 82%, white 18%);
+  font-size: 0.58rem;
+  font-weight: 820;
+  white-space: nowrap;
+  transition: background 180ms ease, border-color 180ms ease;
+}
+
+.kushi-template-card:hover .kushi-template-card__action {
+  border-color: color-mix(in srgb, var(--template-accent) 65%, transparent);
+  background: color-mix(in srgb, var(--template-accent) 13%, transparent);
+}
+
+@media (max-width: 1080px) {
+  .kushi-template-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+
+@media (max-width: 850px) {
+  .studio-template-showcase {
+    padding: 74px 0 82px;
+  }
+
+  .kushi-template-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .kushi-template-card {
+    border-radius: 20px;
+  }
+
+  .kushi-template-card__preview-content {
+    padding-right: 15px;
+    padding-left: 15px;
+  }
+}
+
+@media (max-width: 650px) {
+  .studio-template-showcase {
+    padding: 66px 0 72px;
+  }
+
+  .studio-template-showcase .studio-section-heading {
+    display: grid;
+    gap: 16px;
+  }
+
+  .studio-view-all-templates {
+    justify-self: start;
+  }
+
+  .kushi-template-grid {
+    gap: 10px;
+  }
+
+  .kushi-template-card {
+    border-radius: 17px;
+  }
+
+  .kushi-template-card__preview {
+    aspect-ratio: 4 / 5.35;
+  }
+
+  .kushi-template-card__photo-slot {
+    top: 14%;
+    width: 70%;
+    border-radius: 16px;
+  }
+
+  .kushi-template-card__badge {
+    top: 9px;
+    left: 9px;
+    min-height: 23px;
+    padding: 0 7px;
+    font-size: 0.45rem;
+  }
+
+  .kushi-template-card__preview-content {
+    padding: 18px 10px 38px;
+  }
+
+  .kushi-template-card__eyebrow {
+    font-size: 0.45rem;
+  }
+
+  .kushi-template-card__title {
+    margin-top: 6px;
+    font-size: 0.9rem;
+  }
+
+  .kushi-template-card__brand {
+    margin-top: 6px;
+    font-size: 0.4rem;
+  }
+
+  .kushi-template-card__category-pill {
+    right: 8px;
+    bottom: 8px;
+    min-height: 23px;
+    padding: 0 7px;
+    font-size: 0.45rem;
+  }
+
+  .kushi-template-card__footer {
+    min-height: 76px;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 9px;
+    padding: 11px;
+  }
+
+  .kushi-template-card__footer-copy strong {
+    font-size: 0.68rem;
+  }
+
+  .kushi-template-card__footer-copy span {
+    font-size: 0.54rem;
+  }
+
+  .kushi-template-card__action {
+    min-height: 29px;
+    padding: 0 9px;
+    font-size: 0.51rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .kushi-template-grid {
+    gap: 8px;
+  }
+
+  .kushi-template-card__preview-content {
+    padding-right: 7px;
+    padding-left: 7px;
+  }
+
+  .kushi-template-card__title {
+    font-size: 0.8rem;
+  }
+
+  .kushi-template-card__footer {
+    padding: 9px;
   }
 }

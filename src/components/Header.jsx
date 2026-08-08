@@ -12,7 +12,7 @@ const navigationItems = [
   { name: "Home", path: "/" },
   { name: "Services", path: "/services" },
   { name: "Gallery", path: "/gallery" },
-  { name: "Studio", path: "/studio" },
+  { name: "Design Studio", path: "/studio" },
   { name: "About", path: "/about" },
   { name: "Contact", path: "/contact" },
 ];

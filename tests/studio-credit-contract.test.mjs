@@ -65,7 +65,7 @@ test("Studio upload and result components use ratio frames with contained images
   assert.match(uploader, /naturalWidth/);
   assert.match(uploader, /naturalHeight/);
   assert.match(result, /preferDimensions: true/);
-  assert.match(result, /<dt>Quality<\/dt><dd>Premium High Resolution<\/dd>/);
+  assert.match(result, /<dt>Quality<\/dt><dd>High<\/dd>/);
   assert.doesNotMatch(result, /Upscale|Advanced AI upscaling/);
   assert.match(
     styles,
@@ -144,10 +144,10 @@ test("installed Supabase invoke options are documented and request timeouts are 
   assert.equal(functionsPackage.version, "2.110.7");
   assert.match(invokeTypes, /signal\?: AbortSignal/);
   assert.match(invokeTypes, /timeout\?: number/);
-  assert.match(studioService, /FUNCTION_TIMEOUT_MS = 330_000/);
+  assert.match(studioService, /FUNCTION_TIMEOUT_MS = 145_000/);
   assert.match(studioService, /timeout: FUNCTION_TIMEOUT_MS/);
   assert.doesNotMatch(studioService, /signal,/);
-  assert.match(providerFactory, /STUDIO_PROVIDER_TIMEOUT_MS"\) \|\| 240_000/);
+  assert.match(providerFactory, /STUDIO_PROVIDER_TIMEOUT_MS"\) \|\| 120_000/);
 });
 
 test("Edge Function authenticates, reserves before OpenAI, and reconciles failures", async () => {

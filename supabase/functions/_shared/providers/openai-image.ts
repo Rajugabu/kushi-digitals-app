@@ -18,16 +18,15 @@ type OpenAIImageResponse = {
 const OPENAI_IMAGE_ENDPOINT =
   "https://api.openai.com/v1/images/edits";
 
-// High-resolution sizes for gpt-image-2.
-// Every edge is a multiple of 16, the aspect ratios are exact,
-// and every image stays within the 8,294,400-pixel API limit.
+// Reliable production sizes for gpt-image-2. These preserve each ratio while
+// keeping response decoding, function memory, and Storage upload overhead low.
 const OUTPUT_SIZES: Record<string, [number, number]> = {
-  "1:1": [2864, 2864],
-  "2:3": [2336, 3504],
-  "3:2": [3504, 2336],
-  "4:5": [2560, 3200],
-  "9:16": [2160, 3840],
-  "16:9": [3840, 2160],
+  "1:1": [1024, 1024],
+  "2:3": [1024, 1536],
+  "3:2": [1536, 1024],
+  "4:5": [1024, 1280],
+  "9:16": [1008, 1792],
+  "16:9": [1792, 1008],
 };
 
 function base64ToBytes(value: string) {
@@ -99,7 +98,7 @@ export class OpenAIImageProvider implements ImageProvider {
   constructor({
     apiKey,
     model = "gpt-image-2",
-    timeoutMs = 240_000,
+    timeoutMs = 120_000,
   }: {
     apiKey: string;
     model?: string;

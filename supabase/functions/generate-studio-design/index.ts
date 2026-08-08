@@ -18,6 +18,7 @@ import {
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const MAX_REQUEST_SIZE = 43 * 1024 * 1024;
 const RESULTS_BUCKET = "studio-results";
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -240,9 +241,20 @@ async function parseGenerationRequest(request: Request) {
 
   const styleId = String(formData.get("styleId") || "").trim();
   const ratio = String(formData.get("ratio") || "").trim();
+  const submittedGenerationId = String(
+    formData.get("generationId") || "",
+  ).trim();
+  const generationId = submittedGenerationId || crypto.randomUUID();
   const photo1Entry = formData.get("photo1");
   const photo2Entry = formData.get("photo2");
   const preset = getStylePreset(styleId);
+
+  if (!UUID_PATTERN.test(generationId)) {
+    throw new StudioRequestError(
+      "INVALID_GENERATION_ID",
+      "The generation request identifier is invalid.",
+    );
+  }
 
   if (!preset) {
     throw new StudioRequestError(
@@ -291,6 +303,7 @@ async function parseGenerationRequest(request: Request) {
   }
 
   return {
+    generationId,
     styleId,
     ratio,
     preset,
@@ -506,6 +519,26 @@ async function releaseCredits(
   return null;
 }
 
+async function reconcileCredits(
+  adminClient: SupabaseClient,
+  generationId: string,
+): Promise<StudioCreditResult | null> {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const { data, error } = await adminClient.rpc(
+      "reconcile_studio_generation_credits",
+      { p_generation_id: generationId },
+    );
+
+    if (!error) {
+      return (data || {}) as StudioCreditResult;
+    }
+
+    logRpcError(`credit reconciliation attempt ${attempt + 1}`, error);
+  }
+
+  return null;
+}
+
 async function createSecureResultUrls(
   adminClient: SupabaseClient,
   outputPath: string,
@@ -556,6 +589,7 @@ async function createSecureResultUrls(
 async function recoverCompletedGeneration(
   adminClient: SupabaseClient,
   generationId: string,
+  userId: string,
   creditResult: StudioCreditResult,
 ) {
   const { data: generation, error } = await adminClient
@@ -564,6 +598,7 @@ async function recoverCompletedGeneration(
       "id, style_id, ratio, generation_mode, status, output_path, output_format, output_width, output_height, provider, provider_model, provider_metadata, credit_cost, credit_status, created_at",
     )
     .eq("id", generationId)
+    .eq("user_id", userId)
     .eq("status", "completed")
     .eq("credit_status", "finalized")
     .maybeSingle();
@@ -610,6 +645,117 @@ async function recoverCompletedGeneration(
       generationMode: generation.generation_mode,
       upscale: storedMetadata.upscale || null,
     },
+  };
+}
+
+async function recoverGenerationState(
+  adminClient: SupabaseClient,
+  generationId: string,
+  userId: string,
+) {
+  const { data: generation, error } = await adminClient
+    .from("studio_generations")
+    .select(
+      "id, style_id, ratio, status, credit_status, credit_cost, error_code, error_message",
+    )
+    .eq("id", generationId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    logRpcError("generation recovery query", error);
+    throw new StudioRequestError(
+      "GENERATION_RECOVERY_FAILED",
+      "The generation status could not be checked safely.",
+      503,
+      true,
+    );
+  }
+
+  if (!generation) {
+    return {
+      success: true,
+      generationId,
+      status: "not_found",
+      creditStatus: "not_reserved",
+      message: "No generation record was found.",
+    };
+  }
+
+  let creditStatus = generation.credit_status;
+  let creditResult: StudioCreditResult = {};
+
+  if (
+    creditStatus === "reserved" &&
+    (generation.status === "completed" || generation.status === "failed")
+  ) {
+    const reconciled = await reconcileCredits(adminClient, generationId);
+
+    if (reconciled) {
+      creditResult = reconciled;
+      creditStatus = reconciled.status || creditStatus;
+    }
+  }
+
+  if (generation.status === "completed" && creditStatus === "finalized") {
+    if (creditResult.available_credits === undefined) {
+      creditResult.available_credits = await getAvailableCredits(
+        adminClient,
+        userId,
+      );
+    }
+
+    const completed = await recoverCompletedGeneration(
+      adminClient,
+      generationId,
+      userId,
+      creditResult,
+    );
+
+    if (completed) {
+      return completed;
+    }
+
+    throw new StudioRequestError(
+      "GENERATION_RECOVERY_FAILED",
+      "The completed image could not be reopened securely.",
+      503,
+      true,
+    );
+  }
+
+  if (generation.status === "failed") {
+    const refundPending = creditStatus === "reserved";
+
+    return {
+      success: false,
+      generationId,
+      styleId: generation.style_id,
+      ratio: generation.ratio,
+      status: "failed",
+      code: refundPending
+        ? "STUDIO_CREDIT_REFUND_PENDING"
+        : generation.error_code || "GENERATION_FAILED",
+      message: refundPending
+        ? "This generation failed, but its reserved credits are still pending server-side reconciliation."
+        : generation.error_message || "This generation failed safely.",
+      creditStatus: refundPending ? "refund_pending" : creditStatus,
+      refundPending,
+      retryable: !refundPending,
+    };
+  }
+
+  return {
+    success: true,
+    generationId,
+    styleId: generation.style_id,
+    ratio: generation.ratio,
+    status: "processing",
+    creditStatus,
+    retryable: true,
+    message: generation.status === "completed"
+      ? "The image is saved and its credit finalization is being reconciled."
+      : "The generation is still processing.",
   };
 }
 
@@ -690,8 +836,11 @@ Deno.serve(async (request) => {
 
   let adminClient: SupabaseClient | null = null;
   let generationId: string | null = null;
+  let authenticatedUserId: string | null = null;
   let outputPath: string | null = null;
   let creditsFinalized = false;
+  let recoveryOnly = false;
+  let generationCreated = false;
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -718,14 +867,81 @@ Deno.serve(async (request) => {
       supabaseUrl,
       supabaseAnonKey,
     );
-    const { styleId, ratio, preset, images } =
-      await parseGenerationRequest(request);
+    authenticatedUserId = user.id;
     adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
       },
     });
+
+    const contentType = request.headers.get("Content-Type") || "";
+
+    if (contentType.includes("application/json")) {
+      recoveryOnly = true;
+      let recoveryRequest: { action?: string; generationId?: string };
+
+      try {
+        recoveryRequest = await request.json();
+      } catch {
+        throw new StudioRequestError(
+          "INVALID_RECOVERY_REQUEST",
+          "The generation status request could not be read.",
+        );
+      }
+
+      generationId = String(recoveryRequest.generationId || "").trim();
+
+      if (
+        recoveryRequest.action !== "recover" ||
+        !UUID_PATTERN.test(generationId)
+      ) {
+        throw new StudioRequestError(
+          "INVALID_RECOVERY_REQUEST",
+          "A valid generation identifier is required to check status.",
+        );
+      }
+
+      return jsonResponse(
+        request,
+        await recoverGenerationState(adminClient, generationId, user.id),
+      );
+    }
+
+    const {
+      generationId: requestGenerationId,
+      styleId,
+      ratio,
+      preset,
+      images,
+    } = await parseGenerationRequest(request);
+    generationId = requestGenerationId;
+
+    const { data: existingGeneration, error: existingError } =
+      await adminClient
+        .from("studio_generations")
+        .select("id")
+        .eq("id", generationId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+    if (existingError) {
+      logRpcError("idempotency query", existingError);
+      throw new StudioRequestError(
+        "STUDIO_BACKEND_NOT_READY",
+        "Studio generation tracking is temporarily unavailable.",
+        503,
+        true,
+      );
+    }
+
+    if (existingGeneration) {
+      return jsonResponse(
+        request,
+        await recoverGenerationState(adminClient, generationId, user.id),
+      );
+    }
+
     const fingerprint = await createRequestFingerprint(
       user.id,
     );
@@ -736,6 +952,7 @@ Deno.serve(async (request) => {
       await adminClient
         .from("studio_generations")
         .insert({
+          id: generationId,
           user_id: user.id,
           style_id: styleId,
           ratio,
@@ -753,6 +970,13 @@ Deno.serve(async (request) => {
         .single();
 
     if (createError || !generation) {
+      if (createError?.code === "23505") {
+        return jsonResponse(
+          request,
+          await recoverGenerationState(adminClient, generationId, user.id),
+        );
+      }
+
       console.error("[studio generation insert error]", {
         code: createError?.code || "NO_GENERATION_ROW",
         message:
@@ -769,7 +993,7 @@ Deno.serve(async (request) => {
       );
     }
 
-    generationId = generation.id;
+    generationCreated = true;
 
     const reservation = await reserveCredits(
       adminClient,
@@ -902,12 +1126,20 @@ Deno.serve(async (request) => {
 
     let releaseResult: StudioCreditResult | null = null;
 
-    if (adminClient && generationId && !creditsFinalized) {
+    if (
+      !recoveryOnly &&
+      generationCreated &&
+      adminClient &&
+      generationId &&
+      !creditsFinalized
+    ) {
       releaseResult = await releaseCredits(adminClient, generationId);
     }
 
     const creditsWereFinalized = releaseResult?.status === "finalized";
     const refundPending = Boolean(
+      !recoveryOnly &&
+      generationCreated &&
       adminClient &&
       generationId &&
       !creditsFinalized &&
@@ -918,6 +1150,7 @@ Deno.serve(async (request) => {
     if (
       adminClient &&
       generationId &&
+      authenticatedUserId &&
       creditsWereFinalized &&
       releaseResult
     ) {
@@ -925,6 +1158,7 @@ Deno.serve(async (request) => {
         const recoveredResult = await recoverCompletedGeneration(
           adminClient,
           generationId,
+          authenticatedUserId,
           releaseResult,
         );
 
@@ -978,7 +1212,11 @@ Deno.serve(async (request) => {
       }
     }
 
-    if (!creditsWereFinalized) {
+    if (
+      !recoveryOnly &&
+      generationCreated &&
+      !creditsWereFinalized
+    ) {
       await markGenerationFailed(
         adminClient,
         generationId,

@@ -71,11 +71,34 @@ Keep the full head, hair, body, and important clothing visible. Use clean anatom
 FINAL IDENTITY CHECK: Even in chibi form, the character must clearly and immediately represent the same person from reference image 1.
 `.trim();
 
+const PREMIUM_PORTRAIT_FINISH = `
+QUALITY TARGET:
+- Deliver a premium professional portrait result with polished composition, balanced lighting, elegant depth, clean anatomy, crisp facial detail, realistic skin texture, refined hair strands, and accurate garment texture.
+- Preserve a natural human look with believable skin tone and subtle texture; avoid plastic skin, heavy smoothing, muddy textures, harsh halos, awkward crops, low-detail rendering, or cheap AI artifacts.
+- Keep the final result premium, print-worthy, and visually impressive for paid customer delivery.
+`.trim();
+
+const PREMIUM_TWO_IMAGE_FINISH = `
+QUALITY TARGET:
+- Deliver a premium professional two-person composition with both faces fully clear, individually recognizable, naturally proportioned, and attractively balanced in the frame.
+- Preserve realistic skin tone, garment texture, jewelry detail, clean anatomy, elegant lighting, and premium festive styling.
+- Avoid face merging, duplicate features, distorted hands, warped jewelry, cluttered layout, muddy textures, text errors, low-detail rendering, or cheap AI artifacts.
+- Keep the final result polished, print-worthy, and suitable for paid customer delivery.
+`.trim();
+
+const PREMIUM_CHIBI_FINISH = `
+QUALITY TARGET:
+- Deliver a premium polished chibi illustration with strong recognizable identity cues, expressive clean eyes, attractive proportions, soft dimensional shading, neat costume detail, and a vibrant premium illustrated background.
+- Keep the character cute and stylized while still clearly representing the same real person.
+- Avoid generic faces, messy anatomy, extra fingers, duplicate characters, clutter, muddy colors, or cheap AI artifacts.
+`.trim();
+
 function portraitPreset(
   id: string,
   stylePrompt: string,
   supportedRatios = ["2:3", "3:2"],
   identityPrompt = PORTRAIT_IDENTITY_LOCK,
+  finishingPrompt = PREMIUM_PORTRAIT_FINISH,
 ): StudioStylePreset {
   return {
     id,
@@ -83,8 +106,8 @@ function portraitPreset(
     photosRequired: 1,
     creditCost: 3,
     supportedRatios,
-    quality: "medium",
-    prompt: `${identityPrompt}\n\nREQUESTED STYLE TREATMENT:\n${stylePrompt}\n\nApply only this requested treatment while obeying every identity and preservation constraint above.`,
+    quality: "high",
+    prompt: `${identityPrompt}\n\nREQUESTED STYLE TREATMENT:\n${stylePrompt}\n\n${finishingPrompt}\n\nApply only this requested treatment while obeying every identity and preservation constraint above.`,
     upscale: "preferred",
   };
 }
@@ -94,6 +117,7 @@ function twoImagePreset(
   mode: Exclude<GenerationMode, "single_portrait_style">,
   stylePrompt: string,
   supportedRatios: string[],
+  finishingPrompt = PREMIUM_TWO_IMAGE_FINISH,
 ): StudioStylePreset {
   return {
     id,
@@ -101,75 +125,106 @@ function twoImagePreset(
     photosRequired: 2,
     creditCost: 4,
     supportedRatios,
-    quality: "medium",
-    prompt: `${TWO_IMAGE_IDENTITY_LOCK}\n\nREQUESTED DESIGN TREATMENT:\n${stylePrompt}\n\nApply only this requested treatment while obeying every identity and preservation constraint above.`,
+    quality: "high",
+    prompt: `${TWO_IMAGE_IDENTITY_LOCK}\n\nREQUESTED DESIGN TREATMENT:\n${stylePrompt}\n\n${finishingPrompt}\n\nApply only this requested treatment while obeying every identity and preservation constraint above.`,
     upscale: "preferred",
   };
 }
 
 export const STYLE_PRESETS: Record<string, StudioStylePreset> = {
-  "classic-painting": portraitPreset(
-    "classic-painting",
-    "Transform only the visual treatment into a refined classical digital painting with subtle hand-painted texture, balanced warm studio light, elegant depth, restrained color, and a timeless gallery-quality background. Keep the locked face naturally realistic and structurally unchanged.",
-  ),
+  "classic-painting": {
+    id: "classic-painting",
+    mode: "single_portrait_style",
+    photosRequired: 1,
+    creditCost: 3,
+    supportedRatios: ["2:3", "3:2"],
+    quality: "high",
+    prompt: `Use the uploaded photo as the reference image.
+
+Transform this blurred photo into an ultra-realistic professional DSLR portrait while keeping the EXACT SAME PERSON, SAME FACE, SAME EYES, SAME NOSE, SAME LIPS, SAME HAIRSTYLE, SAME SKIN TONE, SAME FACIAL STRUCTURE, SAME BODY POSITION, SAME POSE, and SAME EXPRESSION with 100% identity preservation.
+
+Restore all lost details naturally, remove blur completely, recover facial features, enhance skin texture realistically, sharpen eyes, improve hair details, and increase overall image clarity to DSLR camera quality.
+
+Apply natural lighting, realistic shadows, accurate skin tones, professional color grading, and high dynamic range. Maintain the original composition and framing without changing the person's appearance.
+
+Create a crisp, ultra-sharp 8K resolution photograph with professional DSLR lens quality, realistic depth, natural bokeh, high-detail textures, and studio-grade image enhancement.
+
+No face modification, no beauty filter, no artificial face generation, no face swapping, no age change, no expression change, no pose change, no body shape change. Keep the exact same identity and appearance.
+
+Ultra-realistic, DSLR photography, 85mm lens, f/1.8 aperture, shallow depth of field, natural colors, maximum sharpness, professional portrait retouching, 8K, photorealistic.`,
+    upscale: "preferred",
+  },
+
   "digital-painting-red-petal": portraitPreset(
     "digital-painting-red-petal",
-    "Create a premium digital portrait treatment with deep crimson and red-petal accents, soft cinematic rim light, elegant floating botanical detail, finely painted hair texture, and a sophisticated dark editorial background. Keep the locked face naturally realistic and structurally unchanged.",
+    "Create a premium digital portrait treatment with deep crimson and red-petal accents, elegant floating botanical detail, refined painterly texture, soft cinematic rim lighting, and a rich dark editorial background. Preserve the exact same identity, expression, face structure, hairstyle, and skin tone. Keep the subject visually dominant and render the result with luxurious mood, crisp facial detail, and premium beauty-portrait finishing without redesigning the person.",
   ),
+
   "digital-painting-tropical": portraitPreset(
     "digital-painting-tropical",
-    "Create a luminous tropical digital painting treatment with lush botanical color, warm natural light, refined foliage depth, detailed hair, and a modern premium portrait composition that keeps the subject visually dominant. Keep the locked face naturally realistic and structurally unchanged.",
+    "Create a luminous tropical digital painting treatment with lush botanical atmosphere, vibrant natural greens, warm flattering light, refined foliage depth, detailed hair texture, and a premium editorial portrait composition. Preserve the exact same identity, expression, face structure, hairstyle, and skin tone. Keep the subject as the clear focal point and deliver a polished high-end tropical portrait look.",
   ),
+
   "digital-painting-royal-pink": portraitPreset(
     "digital-painting-royal-pink",
-    "Create an elegant royal-pink digital portrait treatment with delicate ornamental light, rich magenta and rose tones, graceful presentation, and a luxurious studio backdrop. Polish the existing clothing without redesigning the person. Keep the locked face naturally realistic and structurally unchanged.",
+    "Create an elegant royal-pink digital portrait treatment with delicate ornamental lighting, rich magenta and rose color harmony, graceful presentation, and a luxurious studio-style backdrop. Preserve the exact same identity, expression, face structure, hairstyle, and skin tone. Polish the existing clothing presentation without redesigning the person, and render the final portrait with premium softness, crisp detail, and a regal high-end finish.",
     ["2:3"],
   ),
+
   "digital-painting-forest-green": portraitPreset(
     "digital-painting-forest-green",
-    "Create a sophisticated forest-green artistic portrait treatment with a deep emerald atmosphere, soft directional studio light, subtle natural textures, cinematic depth, and a clean premium editorial composition. Keep the locked face naturally realistic and structurally unchanged.",
+    "Create a sophisticated forest-green artistic portrait treatment with deep emerald atmosphere, soft directional studio light, subtle natural textures, cinematic depth, and a clean premium editorial composition. Preserve the exact same identity, expression, face structure, hairstyle, and skin tone. Render the portrait with elegant tonal control, crisp detail, and a refined luxury finish.",
   ),
+
   "digital-painting-pastel-cloud": portraitPreset(
     "digital-painting-pastel-cloud",
-    "Create a dreamy pastel-cloud portrait treatment with airy lavender, blush, and pale-blue tones, soft diffused light, delicate painterly texture, detailed hair, and an uncluttered ethereal background. Keep the locked face naturally realistic and structurally unchanged.",
+    "Create a dreamy pastel-cloud portrait treatment with airy lavender, blush, and pale-blue tones, soft diffused lighting, delicate painterly texture, detailed hair rendering, and an uncluttered ethereal background. Preserve the exact same identity, expression, face structure, hairstyle, and skin tone. Deliver a soft premium portrait aesthetic with clean detail and graceful high-end presentation.",
   ),
+
   "digital-painting-aurora": portraitPreset(
     "digital-painting-aurora",
-    "Create a cinematic aurora-inspired digital portrait treatment with controlled violet, cyan, and teal light, luminous atmospheric depth, elegant color separation, and a premium modern composition. Keep the locked face naturally realistic and structurally unchanged.",
+    "Create a cinematic aurora-inspired digital portrait treatment with controlled violet, cyan, and teal lighting, luminous atmospheric depth, elegant color separation, and a premium modern composition. Preserve the exact same identity, expression, face structure, hairstyle, and skin tone. Render the portrait with dramatic mood, refined detail, and a polished premium finish.",
   ),
+
   "wedding-banner-elegance": twoImagePreset(
     "wedding-banner-elegance",
     "banner_or_template_style",
-    "Create a premium Indian wedding celebration banner composition featuring both people prominently, with tasteful gold ornament, subtle floral decoration, warm festive lighting, elegant visual balance, and deliberate negative space where event text can later be added. Do not render any words or dates.",
+    "Create a premium Indian wedding celebration banner composition featuring both people prominently, with tasteful gold ornament, subtle floral decoration, warm festive lighting, rich garment detail, elegant visual balance, and deliberate negative space where event text can later be added. Keep both faces fully clear, naturally attractive, and structurally unchanged. Do not render any words or dates.",
     ["3:2"],
   ),
+
   "double-exposure-dreamscape": twoImagePreset(
     "double-exposure-dreamscape",
     "double_image_composition",
-    "Create a refined double-exposure artwork. Keep the person from reference image 1 as the clear primary portrait. Blend only the atmosphere, landscape, color, or meaningful non-facial details from reference image 2 into the silhouette and background. Use seamless premium transitions and cinematic depth. Never blend or replace facial traits.",
+    "Create a refined premium double-exposure artwork. Keep the person from reference image 1 as the clear primary portrait. Blend only the atmosphere, landscape, color, or meaningful non-facial details from reference image 2 into the silhouette and background. Use seamless transitions, cinematic depth, elegant lighting, and sophisticated layering. Never blend, replace, or distort facial traits.",
     ["2:3", "3:2"],
   ),
+
   "wedding-design-celebration": twoImagePreset(
     "wedding-design-celebration",
     "banner_or_template_style",
-    "Create a luxurious wedding couple portrait design with both people naturally composed together, premium floral framing, gentle gold accents, flattering soft light, rich festive color, and a polished album-cover aesthetic. Keep both locked faces naturally realistic and structurally unchanged. Do not add text.",
+    "Create a luxurious wedding couple portrait design with both people naturally composed together, premium floral framing, gentle gold accents, flattering soft light, rich festive color, detailed garment and jewelry texture, and a polished album-cover aesthetic. Keep both locked faces naturally realistic and structurally unchanged. Do not add text.",
     ["2:3", "3:2"],
   ),
+
   "wedding-card-minimal-bloom": twoImagePreset(
     "wedding-card-minimal-bloom",
     "banner_or_template_style",
-    "Create a minimalist wedding invitation-style portrait composition featuring both people, with subtle botanical blooms, refined ivory and blush color, generous clean negative space, elegant lighting, and premium editorial balance. Keep both locked faces naturally realistic and structurally unchanged. Do not generate names, dates, or other text.",
+    "Create a minimalist wedding invitation-style portrait composition featuring both people, with subtle botanical blooms, refined ivory and blush color harmony, generous clean negative space, elegant lighting, and premium editorial balance. Keep both faces naturally realistic, fully visible, and structurally unchanged. Do not generate names, dates, or other text.",
     ["2:3"],
   ),
+
   "chibi-happy-day": portraitPreset(
     "chibi-happy-day",
-    "Transform the subject into a polished high-detail chibi character with a cheerful expression, strong recognizable identity cues, the same hairstyle and clothing colors, clean expressive eyes, balanced chibi proportions, soft dimensional shading, and a bright premium illustrated background.",
+    "Transform the subject into a polished high-detail chibi character with a cheerful expression, strong recognizable identity cues, the same hairstyle and clothing colors, clean expressive eyes, balanced chibi proportions, soft dimensional shading, and a bright premium illustrated background. Keep the result cute, attractive, and clearly based on the same person rather than a generic cartoon character.",
     ["2:3", "3:2"],
     CHIBI_IDENTITY_GUIDE,
+    PREMIUM_CHIBI_FINISH,
   ),
+
   "studio-design-clean-light": portraitPreset(
     "studio-design-clean-light",
-    "Create a clean professional studio portrait treatment with balanced neutral lighting, accurate natural skin tone, crisp facial and hair detail, subtle background depth, neat presentation, and a realistic premium photography finish. Change only lighting, background, and finishing; keep the person, face, expression, pose, clothing, and body unchanged.",
+    "Create a clean professional studio portrait treatment with balanced neutral lighting, accurate natural skin tone, crisp facial and hair detail, subtle background depth, neat presentation, and a realistic premium photography finish. Change only lighting, background, and finishing while keeping the person, face, expression, pose, clothing, and body unchanged. Deliver a polished studio-quality result suitable for premium customer output.",
   ),
 };
 

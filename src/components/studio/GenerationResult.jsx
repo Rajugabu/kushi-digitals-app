@@ -64,7 +64,7 @@ function GenerationResult({
             <div><dt>Output ratio</dt><dd>{ratioDetails?.label} {ratioDetails?.dimensions}</dd></div>
             <div><dt>Dimensions</dt><dd>{dimensions}</dd></div>
             <div><dt>Provider</dt><dd>{formatProviderName(metadata.provider)}</dd></div>
-            <div><dt>Quality</dt><dd>Premium High Resolution</dd></div>
+            <div><dt>Quality</dt><dd>High</dd></div>
             <div><dt>Status</dt><dd>Completed</dd></div>
           </dl>
 
