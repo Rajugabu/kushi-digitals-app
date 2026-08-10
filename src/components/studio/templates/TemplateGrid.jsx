@@ -1,6 +1,14 @@
 import TemplateCard from "./TemplateCard";
 
-function TemplateGrid({ templates = [], onSelectTemplate }) {
+function TemplateGrid({
+  templates = [],
+  onSelectTemplate,
+  selectedTemplateId,
+  profilePhotoUrl = "",
+  profileFullName = "",
+  photoOverrides = {},
+  photoAdjustments = {},
+}) {
   if (!templates.length) {
     return (
       <div className="kushi-template-empty">
@@ -16,6 +24,10 @@ function TemplateGrid({ templates = [], onSelectTemplate }) {
           key={template.id}
           template={template}
           onSelect={onSelectTemplate}
+          isSelected={selectedTemplateId === template.id}
+          userPhoto={photoOverrides[template.id] || profilePhotoUrl}
+          userName={profileFullName}
+          photoAdjustment={photoAdjustments[template.id]}
         />
       ))}
     </div>

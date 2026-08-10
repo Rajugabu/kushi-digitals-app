@@ -10,6 +10,7 @@ import {
   LogOut,
   ShieldCheck,
   UserRound,
+  PanelsTopLeft,
 } from "lucide-react";
 import { supabase } from "../../services/supabase";
 
@@ -104,6 +105,16 @@ function AdminLayout() {
             <BookOpen size={19} />
             Manage Blog
           </NavLink>
+          <NavLink
+            to="/admin/templates"
+            className={({ isActive }) =>
+              isActive ? "active" : ""
+            }
+          >
+            <PanelsTopLeft size={19} />
+            Template Factory
+          </NavLink>
+
           <NavLink
             to="/admin/support"
             className={({ isActive }) =>

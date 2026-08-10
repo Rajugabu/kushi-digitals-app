@@ -32,6 +32,7 @@ import AdminReferrals from "./pages/admin/AdminReferrals";
 import AdminBlog from "./pages/admin/AdminBlog";
 import AdminBlogEditor from "./pages/admin/AdminBlogEditor";
 import AdminBlogPreview from "./pages/admin/AdminBlogPreview";
+import AdminTemplateFactory from "./pages/admin/AdminTemplateFactory";
 import Studio from "./pages/Studio";
 import PrivacyPolicy from "./pages/public/PrivacyPolicy";
 import Terms from "./pages/public/Terms";
@@ -89,6 +90,7 @@ function App() {
         <Route path="support" element={<AdminSupport />} />
         <Route path="customers" element={<AdminCustomers />} />
         <Route path="referrals" element={<AdminReferrals />} />
+        <Route path="templates" element={<AdminTemplateFactory />} />
         <Route path="blog" element={<AdminBlog />} />
         <Route path="blog/new" element={<AdminBlogEditor />} />
         <Route path="blog/:id/edit" element={<AdminBlogEditor />} />
