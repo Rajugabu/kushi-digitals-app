@@ -41,8 +41,41 @@ test("admin factory persists drafts and published templates through the service"
   assert.match(factory, /Update Template/);
   assert.match(factory, /My Templates/);
   assert.match(factory, /uploadStudioTemplateAsset/);
+  assert.match(factory, /Edit Frame/);
+  assert.match(factory, /Adjust Photo/);
+  assert.match(factory, /defaultObjectPositionX/);
+  assert.match(factory, /defaultObjectPositionY/);
+  assert.match(factory, /defaultZoom/);
   assert.match(service, /\.from\("studio_templates"\)/);
   assert.match(service, /\.from\(STUDIO_TEMPLATE_ASSET_BUCKET\)/);
+});
+
+test("background removal uses the authenticated Edge Function boundary", async () => {
+  const factory = await readProjectFile(
+    "src/pages/admin/AdminTemplateFactory.jsx",
+  );
+  const backgroundService = await readProjectFile(
+    "src/services/studioPhotoBackground.js",
+  );
+
+  assert.match(factory, /Remove Background/);
+  assert.match(factory, /isRemovingBackground/);
+  assert.match(backgroundService, /removeStudioPhotoBackground/);
+  assert.match(backgroundService, /STUDIO_BACKGROUND_REMOVAL_CONFIGURED = true/);
+  assert.match(backgroundService, /remove-studio-photo-background/);
+  assert.match(backgroundService, /supabase\.functions\.invoke/);
+  assert.doesNotMatch(backgroundService, /PHOTOROOM_API_KEY/);
+});
+
+test("sample preview name remains local to the factory preview", async () => {
+  const factory = await readProjectFile(
+    "src/pages/admin/AdminTemplateFactory.jsx",
+  );
+
+  assert.match(factory, /Sample Preview Name/);
+  assert.match(factory, /Preview only\. Published templates still use profiles\.full_name/);
+  assert.match(factory, /userName=\{samplePreviewName \|\| profileFullName/);
+  assert.doesNotMatch(factory, /sample_preview_name|samplePreviewName:/);
 });
 
 test("public Studio merges published templates with local demos", async () => {

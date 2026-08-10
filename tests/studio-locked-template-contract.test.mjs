@@ -5,6 +5,8 @@ import test from "node:test";
 import {
   createBackgrounds,
   getTemplateNameSlot,
+  getTemplatePhotoAdjustment,
+  getTemplatePhotoMaskStyle,
   getTemplatePhotoSlot,
   sampleTemplates,
 } from "../src/components/studio/templates/templateData.js";
@@ -26,14 +28,50 @@ test("ready-made templates expose immutable photo and automatic-name slots", () 
   }
 });
 
-test("cutout is modeled but safely renders with the feather fallback", () => {
+test("cutout renders as a real transparent-photo mode without a feather mask", () => {
   const slot = getTemplatePhotoSlot({
     photoSlot: { mode: "cutout", feather: 72 },
   });
 
   assert.equal(slot.mode, "cutout");
-  assert.equal(slot.renderMode, "feather");
-  assert.equal(slot.isCutoutFallback, true);
+  assert.equal(slot.renderMode, "cutout");
+  assert.equal(slot.isCutoutFallback, false);
+  assert.deepEqual(getTemplatePhotoMaskStyle(slot), {});
+});
+
+test("admin crop defaults provide user X, Y and zoom without changing frame geometry", () => {
+  const template = {
+    photoSlot: {
+      mode: "circle",
+      top: "12%",
+      left: "20%",
+      width: "42%",
+      height: "33.6%",
+      defaultObjectPositionX: 61,
+      defaultObjectPositionY: 38,
+      defaultZoom: 1.45,
+    },
+  };
+
+  assert.deepEqual(getTemplatePhotoAdjustment(template), {
+    objectPositionX: 61,
+    objectPositionY: 38,
+    zoom: 1.45,
+  });
+  assert.deepEqual(
+    getTemplatePhotoAdjustment(template, {
+      objectPositionX: 44,
+      objectPositionY: 52,
+      zoom: 2,
+    }),
+    { objectPositionX: 44, objectPositionY: 52, zoom: 2 },
+  );
+
+  const slot = getTemplatePhotoSlot(template);
+  assert.equal(slot.top, "12%");
+  assert.equal(slot.left, "20%");
+  assert.equal(slot.width, "42%");
+  assert.equal(slot.height, "33.6%");
 });
 
 test("Create backgrounds stay separate and do not expose design text", () => {
@@ -59,6 +97,8 @@ test("normal Studio flow does not import or route into TemplateEditor", async ()
   assert.doesNotMatch(studio, /<TemplateEditor/);
   assert.match(preview, /Change Photo/);
   assert.match(preview, /Adjust Photo Position/);
+  assert.match(preview, /Reset Photo Position/);
+  assert.match(preview, /currentAdjustment\.zoom/);
   assert.match(preview, /Save to My Creations/);
   assert.match(preview, /import TemplateArtwork/);
   assert.match(card, /import TemplateArtwork/);

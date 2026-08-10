@@ -28,6 +28,7 @@ import {
   createBackgrounds,
   filterTemplates,
   getTemplateFilter,
+  getTemplatePhotoSlot,
   sampleTemplates,
 } from "../components/studio/templates/templateData";
 
@@ -48,6 +49,10 @@ import {
 
 import { supabase } from "../services/supabase";
 import useStudioProfilePhoto from "../hooks/useStudioProfilePhoto";
+import {
+  getStudioProfileCutout,
+  removeStudioPhotoBackground,
+} from "../services/studioPhotoBackground";
 import { getPublishedStudioTemplates } from "../services/studioTemplates";
 
 const emptyErrors = {
@@ -56,9 +61,31 @@ const emptyErrors = {
   form: "",
 };
 
+const readPhotoAsDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.addEventListener("load", () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+        return;
+      }
+
+      reject(new Error("The selected photo could not be read."));
+    });
+    reader.addEventListener("error", () => {
+      reject(new Error("The selected photo could not be read."));
+    });
+    reader.readAsDataURL(file);
+  });
+
 function Studio() {
   const [searchParams] = useSearchParams();
-  const { profilePhotoUrl, profileFullName } = useStudioProfilePhoto();
+  const {
+    profilePhotoUrl,
+    profileFullName,
+    profileAvatarPath,
+  } = useStudioProfilePhoto();
 
   const initialStyle = getStudioStyleById(searchParams.get("style"));
 
@@ -79,6 +106,10 @@ function Studio() {
   const [savedCreations, setSavedCreations] = useState([]);
   const [templatePhotoOverrides, setTemplatePhotoOverrides] = useState({});
   const [publishedTemplates, setPublishedTemplates] = useState([]);
+  const [profileCutout, setProfileCutout] = useState({
+    sourcePath: "",
+    signedUrl: "",
+  });
   const [templatePhotoAdjustments, setTemplatePhotoAdjustments] = useState(
     () => {
       try {
@@ -280,6 +311,71 @@ function Studio() {
 
     return [...byId.values()];
   }, [publishedTemplates]);
+
+  const hasCutoutTemplates = useMemo(
+    () =>
+      readyMadeTemplates.some(
+        (template) => getTemplatePhotoSlot(template).mode === "cutout",
+      ),
+    [readyMadeTemplates],
+  );
+
+  const profileCutoutUrl =
+    profileCutout.sourcePath === profileAvatarPath
+      ? profileCutout.signedUrl
+      : "";
+
+  useEffect(() => {
+    if (!profileAvatarPath || !hasCutoutTemplates) {
+      return undefined;
+    }
+
+    let isActive = true;
+    let refreshTimer;
+
+    const loadCutout = async (refresh = false) => {
+      try {
+        const result = await getStudioProfileCutout(profileAvatarPath, {
+          refresh,
+        });
+
+        if (!isActive || !result?.signedUrl) {
+          return;
+        }
+
+        setProfileCutout({
+          sourcePath: profileAvatarPath,
+          signedUrl: result.signedUrl,
+        });
+
+        const expiresAt = Date.parse(result.expiresAt || "");
+
+        if (Number.isFinite(expiresAt)) {
+          const refreshDelay = Math.max(
+            60_000,
+            expiresAt - Date.now() - 5 * 60 * 1000,
+          );
+
+          refreshTimer = window.setTimeout(
+            () => loadCutout(true),
+            refreshDelay,
+          );
+        }
+      } catch (error) {
+        if (isActive) {
+          console.warn("Profile cutout unavailable; using original photo.", error);
+          setProfileCutout({ sourcePath: profileAvatarPath, signedUrl: "" });
+        }
+      }
+    };
+
+    loadCutout();
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(refreshTimer);
+    };
+  }, [hasCutoutTemplates, profileAvatarPath]);
 
   const availableUserTemplates = useMemo(
     () => [...readyMadeTemplates, ...createBackgrounds],
@@ -490,12 +586,13 @@ function Studio() {
     setSelectedTemplate(null);
   };
 
-  const handleTemplatePhotoChange = (file) => {
+  const handleTemplatePhotoChange = async (file) => {
     if (!selectedTemplate || !file) {
       return;
     }
 
     const templateId = selectedTemplate.id;
+    const photoMode = getTemplatePhotoSlot(selectedTemplate).mode;
     const previousUrl = templatePhotoOverrides[templateId];
 
     if (previousUrl?.startsWith("blob:")) {
@@ -503,20 +600,16 @@ function Studio() {
       objectUrlsRef.current.delete(previousUrl);
     }
 
-    const reader = new FileReader();
+    const renderedFile =
+      photoMode === "cutout"
+        ? await removeStudioPhotoBackground(file)
+        : file;
+    const dataUrl = await readPhotoAsDataUrl(renderedFile);
 
-    reader.addEventListener("load", () => {
-      if (typeof reader.result !== "string") {
-        return;
-      }
-
-      setTemplatePhotoOverrides((current) => ({
-        ...current,
-        [templateId]: reader.result,
-      }));
-    });
-
-    reader.readAsDataURL(file);
+    setTemplatePhotoOverrides((current) => ({
+      ...current,
+      [templateId]: dataUrl,
+    }));
   };
 
   const handleTemplatePhotoAdjustment = (adjustment) => {
@@ -939,6 +1032,11 @@ function Studio() {
                 userPhoto={
                   templatePhotoOverrides[selectedTemplate.id] || profilePhotoUrl
                 }
+                userCutoutPhoto={
+                  templatePhotoOverrides[selectedTemplate.id]
+                    ? ""
+                    : profileCutoutUrl
+                }
                 userName={profileFullName}
                 photoAdjustment={
                   templatePhotoAdjustments[selectedTemplate.id]
@@ -1122,6 +1220,7 @@ function Studio() {
                           onSelectTemplate={handleTemplateSelect}
                           selectedTemplateId={selectedTemplate?.id}
                           profilePhotoUrl={profilePhotoUrl}
+                          profileCutoutUrl={profileCutoutUrl}
                           profileFullName={profileFullName}
                           photoOverrides={templatePhotoOverrides}
                           photoAdjustments={templatePhotoAdjustments}

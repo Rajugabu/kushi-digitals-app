@@ -156,12 +156,28 @@ export const getTemplatePhotoSlot = (template) => {
   const configuredSlot = template?.photoSlot || {};
   const requestedMode =
     configuredSlot.mode || configuredSlot.shape || "rounded";
-  const renderMode = requestedMode === "cutout" ? "feather" : requestedMode;
+  const renderMode = requestedMode;
   const feather = clamp(
     Number(configuredSlot.feather) || 0,
     0,
     100,
   );
+  const legacyPosition = String(
+    configuredSlot.defaultObjectPosition ||
+      configuredSlot.objectPosition ||
+      "50% 50%",
+  ).match(/(-?\d+(?:\.\d+)?)%?\s+(-?\d+(?:\.\d+)?)%?/);
+  const defaultObjectPositionX = clamp(
+    Number(configuredSlot.defaultObjectPositionX ?? legacyPosition?.[1] ?? 50),
+    0,
+    100,
+  );
+  const defaultObjectPositionY = clamp(
+    Number(configuredSlot.defaultObjectPositionY ?? legacyPosition?.[2] ?? 50),
+    0,
+    100,
+  );
+  const defaultZoom = clamp(Number(configuredSlot.defaultZoom) || 1, 1, 3);
 
   let borderRadius = configuredSlot.borderRadius;
 
@@ -170,7 +186,8 @@ export const getTemplatePhotoSlot = (template) => {
       borderRadius = "999px";
     } else if (
       renderMode === "rectangle" ||
-      renderMode === "feather"
+      renderMode === "feather" ||
+      renderMode === "cutout"
     ) {
       borderRadius = "0px";
     } else {
@@ -187,14 +204,14 @@ export const getTemplatePhotoSlot = (template) => {
     mode: requestedMode,
     shape: renderMode,
     renderMode,
-    isCutoutFallback: requestedMode === "cutout",
+    isCutoutFallback: false,
     feather,
     borderRadius,
     objectFit: configuredSlot.objectFit || "cover",
-    objectPosition:
-      configuredSlot.defaultObjectPosition ||
-      configuredSlot.objectPosition ||
-      "50% 50%",
+    objectPosition: `${defaultObjectPositionX}% ${defaultObjectPositionY}%`,
+    defaultObjectPositionX,
+    defaultObjectPositionY,
+    defaultZoom,
     zIndex: Number(configuredSlot.zIndex) || 2,
   };
 };
@@ -236,20 +253,30 @@ export const getTemplateBackgroundStyle = (template) => {
 
 export const getTemplatePhotoAdjustment = (template, adjustment = {}) => {
   const photoSlot = getTemplatePhotoSlot(template);
-  const match = String(photoSlot.objectPosition).match(
-    /(-?\d+(?:\.\d+)?)%?\s+(-?\d+(?:\.\d+)?)%?/,
-  );
 
   return {
     objectPositionX: clamp(
-      Number(adjustment.objectPositionX ?? adjustment.x ?? match?.[1] ?? 50),
+      Number(
+        adjustment.objectPositionX ??
+          adjustment.x ??
+          photoSlot.defaultObjectPositionX,
+      ),
       0,
       100,
     ),
     objectPositionY: clamp(
-      Number(adjustment.objectPositionY ?? adjustment.y ?? match?.[2] ?? 50),
+      Number(
+        adjustment.objectPositionY ??
+          adjustment.y ??
+          photoSlot.defaultObjectPositionY,
+      ),
       0,
       100,
+    ),
+    zoom: clamp(
+      Number(adjustment.zoom ?? adjustment.scale ?? photoSlot.defaultZoom) || 1,
+      1,
+      3,
     ),
   };
 };

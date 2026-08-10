@@ -12,12 +12,14 @@ import {
 function TemplateArtwork({
   template,
   userPhoto = "",
+  userCutoutPhoto = "",
   userName = "",
   photoAdjustment = {},
   artworkRef,
   compact = false,
   interactivePhoto = false,
   isAdjusting = false,
+  photoSelected = false,
   onPhotoClick,
   onPhotoPointerDown,
   onPhotoPointerMove,
@@ -33,6 +35,10 @@ function TemplateArtwork({
 
   const accent = template.accentColor || "#D4AF37";
   const photoSlot = getTemplatePhotoSlot(template);
+  const renderedUserPhoto =
+    photoSlot.mode === "cutout" && userCutoutPhoto
+      ? userCutoutPhoto
+      : userPhoto;
   const nameSlot = getTemplateNameSlot(template);
   const nameFontSize = String(nameSlot.fontSize).endsWith("%")
     ? `${String(nameSlot.fontSize).slice(0, -1)}cqw`
@@ -42,7 +48,7 @@ function TemplateArtwork({
   const textAlign = textLayout.align || "center";
   const canvas = template.canvas || { width: 1080, height: 1350 };
   const showFallbackArtwork = Boolean(
-    !userPhoto && (template.previewImage || template.thumbnail),
+    !renderedUserPhoto && (template.previewImage || template.thumbnail),
   );
 
   return (
@@ -88,9 +94,14 @@ function TemplateArtwork({
             <div
               className={`kushi-template-artwork__photo ${
                 interactivePhoto ? "is-interactive" : ""
-              } ${isAdjusting ? "is-adjusting" : ""}`}
+              } ${isAdjusting ? "is-adjusting" : ""} ${
+                slotEditing ? "is-frame-editing" : ""
+              } ${photoSelected ? "is-selected" : ""}`}
               style={{
-                zIndex: photoSlot.zIndex,
+                zIndex:
+                  slotEditing || isAdjusting
+                    ? Math.max(photoSlot.zIndex, 10)
+                    : photoSlot.zIndex,
                 top: photoSlot.top,
                 left: photoSlot.left,
                 width: photoSlot.width,
@@ -104,6 +115,8 @@ function TemplateArtwork({
                 interactivePhoto
                   ? isAdjusting
                     ? "Drag to adjust photo position"
+                    : slotEditing
+                      ? "Drag to move the selected photo frame"
                     : "Select photo controls"
                   : undefined
               }
@@ -119,14 +132,22 @@ function TemplateArtwork({
                     }
                   : undefined
               }
-              onPointerDown={isAdjusting ? onPhotoPointerDown : undefined}
-              onPointerMove={isAdjusting ? onPhotoPointerMove : undefined}
-              onPointerUp={isAdjusting ? onPhotoPointerUp : undefined}
-              onPointerCancel={isAdjusting ? onPhotoPointerUp : undefined}
+              onPointerDown={
+                isAdjusting || slotEditing ? onPhotoPointerDown : undefined
+              }
+              onPointerMove={
+                isAdjusting || slotEditing ? onPhotoPointerMove : undefined
+              }
+              onPointerUp={
+                isAdjusting || slotEditing ? onPhotoPointerUp : undefined
+              }
+              onPointerCancel={
+                isAdjusting || slotEditing ? onPhotoPointerUp : undefined
+              }
             >
-              {userPhoto ? (
+              {renderedUserPhoto ? (
                 <img
-                  src={userPhoto}
+                  src={renderedUserPhoto}
                   alt=""
                   draggable="false"
                   loading={compact ? "lazy" : undefined}
@@ -134,6 +155,8 @@ function TemplateArtwork({
                   style={{
                     objectFit: photoSlot.objectFit,
                     objectPosition: `${adjustment.objectPositionX}% ${adjustment.objectPositionY}%`,
+                    transform: `scale(${adjustment.zoom})`,
+                    transformOrigin: `${adjustment.objectPositionX}% ${adjustment.objectPositionY}%`,
                   }}
                 />
               ) : (

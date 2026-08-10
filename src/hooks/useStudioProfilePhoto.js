@@ -20,6 +20,8 @@ function useStudioProfilePhoto() {
     useState("");
 
   const [profileFullName, setProfileFullName] = useState("");
+  const [profileAvatarPath, setProfileAvatarPath] = useState("");
+  const [profileUserId, setProfileUserId] = useState("");
 
   const loadedUserIdRef = useRef(undefined);
 
@@ -44,6 +46,8 @@ function useStudioProfilePhoto() {
 
       setProfilePhotoUrl("");
       setProfileFullName("");
+      setProfileAvatarPath("");
+      setProfileUserId("");
       setProfilePhotoError("");
       setProfilePhotoLoading(false);
     };
@@ -120,6 +124,8 @@ function useStudioProfilePhoto() {
         }
 
         setProfilePhotoUrl(signedUrl);
+        setProfileAvatarPath(profile?.avatar_path || "");
+        setProfileUserId(userId);
         setProfileFullName(
           profile?.full_name ||
             user?.user_metadata?.full_name ||
@@ -153,6 +159,8 @@ function useStudioProfilePhoto() {
         }
 
         setProfilePhotoUrl("");
+        setProfileAvatarPath("");
+        setProfileUserId(userId || "");
         setProfileFullName(
           user?.user_metadata?.full_name ||
             user?.user_metadata?.name ||
@@ -252,6 +260,8 @@ function useStudioProfilePhoto() {
     profilePhotoLoading,
     profilePhotoError,
     profileFullName,
+    profileAvatarPath,
+    profileUserId,
   };
 }
 

@@ -2,20 +2,31 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   Clipboard,
+  Crop,
   Edit3,
   ImagePlus,
   Layers3,
+  Maximize2,
   Move,
   RefreshCw,
+  RotateCcw,
   Save,
+  Scissors,
   Send,
   Upload,
   X,
 } from "lucide-react";
 
 import TemplateArtwork from "../../components/studio/templates/TemplateArtwork";
-import { TEMPLATE_FILTERS } from "../../components/studio/templates/templateData";
+import {
+  getTemplatePhotoAdjustment,
+  TEMPLATE_FILTERS,
+} from "../../components/studio/templates/templateData";
 import useStudioProfilePhoto from "../../hooks/useStudioProfilePhoto";
+import {
+  removeStudioPhotoBackground,
+  STUDIO_BACKGROUND_REMOVAL_CONFIGURED,
+} from "../../services/studioPhotoBackground";
 import {
   getAdminStudioTemplates,
   removeStudioTemplateAssets,
@@ -47,6 +58,9 @@ const defaultPhotoSlot = {
   feather: 70,
   objectFit: "cover",
   defaultObjectPosition: "50% 50%",
+  defaultObjectPositionX: 50,
+  defaultObjectPositionY: 50,
+  defaultZoom: 1,
   zIndex: 2,
 };
 
@@ -67,6 +81,71 @@ const percentValue = (value) => Number.parseFloat(value) || 0;
 const clamp = (value, minimum, maximum) =>
   Math.min(maximum, Math.max(minimum, value));
 
+const normalizePhotoSlot = (slot = {}) => {
+  const next = { ...defaultPhotoSlot, ...slot };
+  const match = String(
+    slot.defaultObjectPosition || slot.objectPosition || "50% 50%",
+  ).match(/(-?\d+(?:\.\d+)?)%?\s+(-?\d+(?:\.\d+)?)%?/);
+  const x = clamp(
+    Number(slot.defaultObjectPositionX ?? match?.[1] ?? 50),
+    0,
+    100,
+  );
+  const y = clamp(
+    Number(slot.defaultObjectPositionY ?? match?.[2] ?? 50),
+    0,
+    100,
+  );
+
+  return {
+    ...next,
+    defaultObjectPosition: `${x}% ${y}%`,
+    defaultObjectPositionX: x,
+    defaultObjectPositionY: y,
+    defaultZoom: clamp(Number(slot.defaultZoom) || 1, 1, 3),
+  };
+};
+
+function NumericRangeControl({
+  label,
+  value,
+  min = 0,
+  max = 100,
+  step = 1,
+  suffix = "%",
+  onChange,
+}) {
+  const numericValue = Number(value) || 0;
+
+  return (
+    <label className="admin-template-factory__range-control">
+      <span>
+        {label} <strong>{numericValue.toFixed(step < 1 ? 2 : 0)}{suffix}</strong>
+      </span>
+      <div>
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={numericValue}
+          onChange={(event) => onChange(Number(event.target.value))}
+        />
+        <input
+          type="number"
+          min={min}
+          max={max}
+          step={step}
+          value={numericValue}
+          onChange={(event) =>
+            onChange(clamp(Number(event.target.value), min, max))
+          }
+        />
+      </div>
+    </label>
+  );
+}
+
 const isMissingPublishingSchema = (error) =>
   error?.code === "42P01" ||
   error?.code === "PGRST205" ||
@@ -80,6 +159,7 @@ function AdminTemplateFactory() {
   const sampleObjectUrlRef = useRef("");
   const slotDragRef = useRef(null);
   const slotResizeRef = useRef(null);
+  const photoDragRef = useRef(null);
 
   const [templates, setTemplates] = useState([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
@@ -108,7 +188,14 @@ function AdminTemplateFactory() {
   const [overlayPreview, setOverlayPreview] = useState("");
   const [removeOverlay, setRemoveOverlay] = useState(false);
   const [samplePhotoUrl, setSamplePhotoUrl] = useState("");
+  const [samplePhotoFile, setSamplePhotoFile] = useState(null);
+  const [samplePreviewName, setSamplePreviewName] = useState(
+    "Sample Profile Name",
+  );
+  const [isRemovingBackground, setIsRemovingBackground] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState("");
+  const [isPhotoSelected, setIsPhotoSelected] = useState(false);
+  const [photoEditorMode, setPhotoEditorMode] = useState("frame");
 
   const revokeObjectUrl = (ref) => {
     if (ref.current) {
@@ -223,6 +310,74 @@ function AdminTemplateFactory() {
     setPhotoSlot((current) => ({ ...current, [key]: `${value}%` }));
   };
 
+  const updateDefaultPhotoAdjustment = (key, value) => {
+    setPhotoSlot((current) => {
+      const x =
+        key === "defaultObjectPositionX"
+          ? clamp(Number(value), 0, 100)
+          : current.defaultObjectPositionX;
+      const y =
+        key === "defaultObjectPositionY"
+          ? clamp(Number(value), 0, 100)
+          : current.defaultObjectPositionY;
+
+      return {
+        ...current,
+        [key]:
+          key === "defaultZoom"
+            ? clamp(Number(value), 1, 3)
+            : Number(value),
+        defaultObjectPositionX: x,
+        defaultObjectPositionY: y,
+        defaultObjectPosition: `${x}% ${y}%`,
+      };
+    });
+  };
+
+  const updateCircleSize = (width) => {
+    const maximumWidth = Math.min(
+      100 - percentValue(photoSlot.left),
+      (100 - percentValue(photoSlot.top)) * (canvas.height / canvas.width),
+    );
+    const nextWidth = clamp(
+      Number(width),
+      8,
+      maximumWidth,
+    );
+    const nextHeight = nextWidth * (canvas.width / canvas.height);
+
+    setPhotoSlot((current) => ({
+      ...current,
+      width: `${nextWidth.toFixed(2)}%`,
+      height: `${nextHeight.toFixed(2)}%`,
+    }));
+  };
+
+  const handleCanvasChange = (ratio) => {
+    const nextCanvas = canvasPresets[ratio];
+    setCanvas(nextCanvas);
+
+    if (photoSlot.mode === "circle") {
+      const width = clamp(
+        percentValue(photoSlot.width),
+        8,
+        Math.min(
+          100 - percentValue(photoSlot.left),
+          (100 - percentValue(photoSlot.top)) *
+            (nextCanvas.height / nextCanvas.width),
+        ),
+      );
+      setPhotoSlot((current) => ({
+        ...current,
+        width: `${width.toFixed(2)}%`,
+        height: `${(
+          width *
+          (nextCanvas.width / nextCanvas.height)
+        ).toFixed(2)}%`,
+      }));
+    }
+  };
+
   const updateNamePercent = (key, value) => {
     setNameSlot((current) => ({ ...current, [key]: `${value}%` }));
   };
@@ -282,8 +437,30 @@ function AdminTemplateFactory() {
       revokeObjectUrl(sampleObjectUrlRef);
       sampleObjectUrlRef.current = URL.createObjectURL(file);
       setSamplePhotoUrl(sampleObjectUrlRef.current);
+      setSamplePhotoFile(file);
+      setIsPhotoSelected(true);
+      setPhotoEditorMode("frame");
     } catch (sampleError) {
       setError(sampleError.message);
+    }
+  };
+
+  const handleRemoveBackground = async () => {
+    try {
+      setIsRemovingBackground(true);
+      setError("");
+      const processedPhoto = await removeStudioPhotoBackground(samplePhotoFile);
+      revokeObjectUrl(sampleObjectUrlRef);
+      sampleObjectUrlRef.current = URL.createObjectURL(processedPhoto);
+      setSamplePhotoUrl(sampleObjectUrlRef.current);
+      setSamplePhotoFile(processedPhoto);
+      showSuccess("Background removed from the temporary sample photo.");
+    } catch (removeError) {
+      setError(
+        removeError?.message || "Background removal failed. Try again.",
+      );
+    } finally {
+      setIsRemovingBackground(false);
     }
   };
 
@@ -310,6 +487,10 @@ function AdminTemplateFactory() {
     setOverlayPreview("");
     setRemoveOverlay(false);
     setSamplePhotoUrl("");
+    setSamplePhotoFile(null);
+    setSamplePreviewName("Sample Profile Name");
+    setIsPhotoSelected(false);
+    setPhotoEditorMode("frame");
     setError("");
   };
 
@@ -326,7 +507,7 @@ function AdminTemplateFactory() {
     setStatus(template.status);
     setSortOrder(template.sortOrder);
     setCanvas(template.canvas);
-    setPhotoSlot({ ...defaultPhotoSlot, ...template.photoSlot });
+    setPhotoSlot(normalizePhotoSlot(template.photoSlot));
     setNameSlot({ ...defaultNameSlot, ...template.nameSlot });
     setBackgroundFile(null);
     setBackgroundPath(template.backgroundPath);
@@ -336,6 +517,10 @@ function AdminTemplateFactory() {
     setOverlayPreview(template.foregroundOverlayImage);
     setRemoveOverlay(false);
     setSamplePhotoUrl("");
+    setSamplePhotoFile(null);
+    setSamplePreviewName("Sample Profile Name");
+    setIsPhotoSelected(false);
+    setPhotoEditorMode("frame");
     setError("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -552,6 +737,30 @@ function AdminTemplateFactory() {
     const resize = slotResizeRef.current;
     if (!resize || resize.pointerId !== event.pointerId) return;
 
+    if (photoSlot.mode === "circle") {
+      const deltaPixels =
+        ((event.clientX - resize.startX) +
+          (event.clientY - resize.startY)) /
+        2;
+      const maximumWidth = Math.min(
+        100 - resize.left,
+        ((100 - resize.top) * resize.stageHeight) / resize.stageWidth,
+      );
+      const width = clamp(
+        resize.width + (deltaPixels / resize.stageWidth) * 100,
+        8,
+        maximumWidth,
+      );
+      const height = (width * resize.stageWidth) / resize.stageHeight;
+
+      setPhotoSlot((current) => ({
+        ...current,
+        width: `${width.toFixed(2)}%`,
+        height: `${height.toFixed(2)}%`,
+      }));
+      return;
+    }
+
     setPhotoSlot((current) => ({
       ...current,
       width: `${clamp(
@@ -573,6 +782,62 @@ function AdminTemplateFactory() {
       event.currentTarget.releasePointerCapture?.(event.pointerId);
       slotResizeRef.current = null;
     }
+  };
+
+  const handlePhotoPointerDown = (event) => {
+    if (!samplePhotoUrl && !profilePhotoUrl) return;
+
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    photoDragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      objectPositionX: photoSlot.defaultObjectPositionX,
+      objectPositionY: photoSlot.defaultObjectPositionY,
+      width: Math.max(event.currentTarget.clientWidth, 1),
+      height: Math.max(event.currentTarget.clientHeight, 1),
+    };
+  };
+
+  const handlePhotoPointerMove = (event) => {
+    const drag = photoDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    updateDefaultPhotoAdjustment(
+      "defaultObjectPositionX",
+      clamp(
+        drag.objectPositionX -
+          ((event.clientX - drag.startX) / drag.width) * 100,
+        0,
+        100,
+      ),
+    );
+    updateDefaultPhotoAdjustment(
+      "defaultObjectPositionY",
+      clamp(
+        drag.objectPositionY -
+          ((event.clientY - drag.startY) / drag.height) * 100,
+        0,
+        100,
+      ),
+    );
+  };
+
+  const handlePhotoPointerUp = (event) => {
+    if (photoDragRef.current?.pointerId === event.pointerId) {
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+      photoDragRef.current = null;
+    }
+  };
+
+  const resetPhotoDefaults = () => {
+    setPhotoSlot((current) => ({
+      ...current,
+      defaultObjectPosition: "50% 50%",
+      defaultObjectPositionX: 50,
+      defaultObjectPositionY: 50,
+      defaultZoom: 1,
+    }));
   };
 
   const handleCopy = async () => {
@@ -669,7 +934,7 @@ function AdminTemplateFactory() {
                 Canvas
                 <select
                   value={canvas.ratio}
-                  onChange={(event) => setCanvas(canvasPresets[event.target.value])}
+                  onChange={(event) => handleCanvasChange(event.target.value)}
                 >
                   {Object.keys(canvasPresets).map((ratio) => (
                     <option key={ratio} value={ratio}>
@@ -743,73 +1008,232 @@ function AdminTemplateFactory() {
           <fieldset>
             <legend>Locked user-photo slot</legend>
             <p className="admin-template-factory__drag-note">
-              <Move size={15} /> Drag the slot in the preview. Drag its gold
-              corner handle to resize. Sliders remain available for precision.
+              <Move size={15} /> Click the photo in the preview, then choose
+              whether you are editing the locked frame or its default crop.
             </p>
+
+            <div className="admin-template-factory__mode-switch" role="group" aria-label="Photo editing mode">
+              <button
+                type="button"
+                className={photoEditorMode === "frame" ? "is-active" : ""}
+                onClick={() => {
+                  setIsPhotoSelected(true);
+                  setPhotoEditorMode("frame");
+                }}
+              >
+                <Maximize2 size={16} /> Edit Frame
+              </button>
+              <button
+                type="button"
+                className={photoEditorMode === "photo" ? "is-active" : ""}
+                onClick={() => {
+                  setIsPhotoSelected(true);
+                  setPhotoEditorMode("photo");
+                }}
+              >
+                <Crop size={16} /> Adjust Photo
+              </button>
+            </div>
+
+            <h3>Shape</h3>
             <label>
-              Mode
+              Frame shape
               <select
                 value={photoSlot.mode}
-                onChange={(event) =>
-                  setPhotoSlot((current) => ({
-                    ...current,
-                    mode: event.target.value,
-                    borderRadius:
-                      event.target.value === "circle"
-                        ? "999px"
-                        : event.target.value === "rounded"
-                          ? "28px"
-                          : "0px",
-                  }))
-                }
+                onChange={(event) => {
+                  const nextMode = event.target.value;
+                  setPhotoSlot((current) => {
+                    const maximumCircleWidth = Math.min(
+                      100 - percentValue(current.left),
+                      (100 - percentValue(current.top)) *
+                        (canvas.height / canvas.width),
+                    );
+                    const circleWidth = clamp(
+                      percentValue(current.width),
+                      8,
+                      maximumCircleWidth,
+                    );
+
+                    return {
+                      ...current,
+                      mode: nextMode,
+                      width:
+                        nextMode === "circle"
+                          ? `${circleWidth.toFixed(2)}%`
+                          : current.width,
+                      height:
+                        nextMode === "circle"
+                          ? `${(
+                              circleWidth *
+                              (canvas.width / canvas.height)
+                            ).toFixed(2)}%`
+                          : current.height,
+                      borderRadius:
+                        nextMode === "circle"
+                          ? "999px"
+                          : nextMode === "rounded"
+                            ? "28px"
+                            : "0px",
+                    };
+                  });
+                }}
               >
                 <option value="circle">Circle</option>
                 <option value="rounded">Rounded</option>
                 <option value="rectangle">Rectangle</option>
                 <option value="feather">Feather</option>
-                <option value="cutout">Cutout (feather fallback)</option>
+                <option value="cutout">Cutout (transparent)</option>
               </select>
             </label>
+
+            {photoSlot.mode === "rounded" && (
+              <NumericRangeControl
+                label="Corner radius"
+                value={Number.parseFloat(photoSlot.borderRadius) || 0}
+                min={0}
+                max={120}
+                suffix="px"
+                onChange={(value) =>
+                  setPhotoSlot((current) => ({
+                    ...current,
+                    borderRadius: `${value}px`,
+                  }))
+                }
+              />
+            )}
+
+            <h3>Frame Position</h3>
             <div className="admin-template-factory__slider-grid">
-              {[
-                ["top", "Top"],
-                ["left", "Left"],
-                ["width", "Width"],
-                ["height", "Height"],
-              ].map(([key, label]) => (
-                <label key={key}>
-                  {label}: {photoSlot[key]}
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={percentValue(photoSlot[key])}
-                    onChange={(event) => updatePhotoPercent(key, event.target.value)}
-                  />
-                </label>
-              ))}
+              <NumericRangeControl
+                label="X / Left"
+                value={percentValue(photoSlot.left)}
+                max={100 - percentValue(photoSlot.width)}
+                step={0.25}
+                onChange={(value) => updatePhotoPercent("left", value)}
+              />
+              <NumericRangeControl
+                label="Y / Top"
+                value={percentValue(photoSlot.top)}
+                max={100 - percentValue(photoSlot.height)}
+                step={0.25}
+                onChange={(value) => updatePhotoPercent("top", value)}
+              />
             </div>
+
+            <h3>Frame Size</h3>
+            <div className="admin-template-factory__slider-grid">
+              {photoSlot.mode === "circle" ? (
+                <NumericRangeControl
+                  label="Circle size"
+                  value={percentValue(photoSlot.width)}
+                  min={8}
+                  max={Math.min(
+                    100 - percentValue(photoSlot.left),
+                    (100 - percentValue(photoSlot.top)) *
+                      (canvas.height / canvas.width),
+                  )}
+                  step={0.25}
+                  onChange={updateCircleSize}
+                />
+              ) : (
+                <>
+                  <NumericRangeControl
+                    label="Width"
+                    value={percentValue(photoSlot.width)}
+                    min={8}
+                    max={100 - percentValue(photoSlot.left)}
+                    step={0.25}
+                    onChange={(value) => updatePhotoPercent("width", value)}
+                  />
+                  <NumericRangeControl
+                    label="Height"
+                    value={percentValue(photoSlot.height)}
+                    min={8}
+                    max={100 - percentValue(photoSlot.top)}
+                    step={0.25}
+                    onChange={(value) => updatePhotoPercent("height", value)}
+                  />
+                </>
+              )}
+            </div>
+
+            <h3>Photo Inside Frame</h3>
+            <div className="admin-template-factory__slider-grid">
+              <NumericRangeControl
+                label="Horizontal Position"
+                value={photoSlot.defaultObjectPositionX}
+                step={0.25}
+                onChange={(value) =>
+                  updateDefaultPhotoAdjustment("defaultObjectPositionX", value)
+                }
+              />
+              <NumericRangeControl
+                label="Vertical Position"
+                value={photoSlot.defaultObjectPositionY}
+                step={0.25}
+                onChange={(value) =>
+                  updateDefaultPhotoAdjustment("defaultObjectPositionY", value)
+                }
+              />
+              <NumericRangeControl
+                label="Zoom"
+                value={photoSlot.defaultZoom}
+                min={1}
+                max={3}
+                step={0.05}
+                suffix="×"
+                onChange={(value) =>
+                  updateDefaultPhotoAdjustment("defaultZoom", value)
+                }
+              />
+              <button
+                type="button"
+                className="admin-template-factory__reset-photo"
+                onClick={resetPhotoDefaults}
+              >
+                <RotateCcw size={15} /> Reset Photo Position
+              </button>
+            </div>
+
             {(photoSlot.mode === "feather" || photoSlot.mode === "cutout") && (
-              <label>
-                Feather: {photoSlot.feather}
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
+              <>
+                <h3>Effects</h3>
+                <NumericRangeControl
+                  label="Feather Strength"
                   value={photoSlot.feather}
-                  onChange={(event) =>
+                  onChange={(value) =>
                     setPhotoSlot((current) => ({
                       ...current,
-                      feather: Number(event.target.value),
+                      feather: value,
                     }))
                   }
                 />
-              </label>
+              </>
             )}
+
+            <div className="admin-template-factory__background-removal">
+              <button
+                type="button"
+                onClick={handleRemoveBackground}
+                disabled={
+                  !STUDIO_BACKGROUND_REMOVAL_CONFIGURED ||
+                  !samplePhotoFile ||
+                  isRemovingBackground
+                }
+              >
+                <Scissors size={16} />
+                {isRemovingBackground
+                  ? "Removing background..."
+                  : "Remove Background"}
+              </button>
+              {!STUDIO_BACKGROUND_REMOVAL_CONFIGURED && (
+                <small>Background removal provider not configured.</small>
+              )}
+            </div>
             {photoSlot.mode === "cutout" && (
               <p className="admin-template-factory__notice">
-                No background-removal provider is installed. Cutout is stored
-                in the model and safely previews as feather.
+                Use Remove Background to preview the real transparent cutout.
+                This sample is temporary and is not published with the template.
               </p>
             )}
           </fieldset>
@@ -828,6 +1252,19 @@ function AdminTemplateFactory() {
                 }
               />
               Show profiles.full_name
+            </label>
+            <label>
+              Sample Preview Name
+              <input
+                type="text"
+                maxLength="120"
+                value={samplePreviewName}
+                onChange={(event) => setSamplePreviewName(event.target.value)}
+                placeholder="Kondeti Murali Krishna"
+              />
+              <small>
+                Preview only. Published templates still use profiles.full_name.
+              </small>
             </label>
             <div className="admin-template-factory__field-grid">
               <label>
@@ -864,6 +1301,24 @@ function AdminTemplateFactory() {
                       {weight}
                     </option>
                   ))}
+                </select>
+              </label>
+              <label>
+                Font family
+                <select
+                  value={nameSlot.fontFamily}
+                  onChange={(event) =>
+                    setNameSlot((current) => ({
+                      ...current,
+                      fontFamily: event.target.value,
+                    }))
+                  }
+                >
+                  <option value="inherit">Site default</option>
+                  <option value="Arial, sans-serif">Arial</option>
+                  <option value="Georgia, serif">Georgia</option>
+                  <option value="'Times New Roman', serif">Times New Roman</option>
+                  <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
                 </select>
               </label>
               <label>
@@ -937,18 +1392,60 @@ function AdminTemplateFactory() {
           <TemplateArtwork
             template={draftTemplate}
             userPhoto={samplePhotoUrl || profilePhotoUrl}
-            userName={profileFullName || "Sample Profile Name"}
+            userName={samplePreviewName || profileFullName || "Sample Profile Name"}
+            photoAdjustment={getTemplatePhotoAdjustment(draftTemplate)}
             artworkRef={artworkRef}
             interactivePhoto
-            isAdjusting
-            slotEditing
-            onPhotoPointerDown={handleSlotPointerDown}
-            onPhotoPointerMove={handleSlotPointerMove}
-            onPhotoPointerUp={handleSlotPointerUp}
+            photoSelected={isPhotoSelected}
+            isAdjusting={isPhotoSelected && photoEditorMode === "photo"}
+            slotEditing={isPhotoSelected && photoEditorMode === "frame"}
+            onPhotoClick={() => setIsPhotoSelected(true)}
+            onPhotoPointerDown={
+              photoEditorMode === "frame"
+                ? handleSlotPointerDown
+                : handlePhotoPointerDown
+            }
+            onPhotoPointerMove={
+              photoEditorMode === "frame"
+                ? handleSlotPointerMove
+                : handlePhotoPointerMove
+            }
+            onPhotoPointerUp={
+              photoEditorMode === "frame"
+                ? handleSlotPointerUp
+                : handlePhotoPointerUp
+            }
             onSlotResizePointerDown={handleResizePointerDown}
             onSlotResizePointerMove={handleResizePointerMove}
             onSlotResizePointerUp={handleResizePointerUp}
           />
+
+          {isPhotoSelected && (
+            <div className="admin-template-factory__preview-modes" role="group" aria-label="Selected photo editing mode">
+              <button
+                type="button"
+                className={photoEditorMode === "frame" ? "is-active" : ""}
+                onClick={() => setPhotoEditorMode("frame")}
+              >
+                <Maximize2 size={16} /> Edit Frame
+              </button>
+              <button
+                type="button"
+                className={photoEditorMode === "photo" ? "is-active" : ""}
+                onClick={() => setPhotoEditorMode("photo")}
+              >
+                <Crop size={16} /> Adjust Photo
+              </button>
+            </div>
+          )}
+
+          {isPhotoSelected && (
+            <p className="admin-template-factory__editing-hint">
+              {photoEditorMode === "frame"
+                ? "Drag the selected frame or its gold handle. Circle resizing stays proportional."
+                : "The frame is locked. Drag only the photo inside it, or use the X, Y and Zoom controls."}
+            </p>
+          )}
 
           <p>
             The sample photo is temporary and is never stored in the published

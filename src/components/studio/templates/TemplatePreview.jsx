@@ -6,11 +6,15 @@ import {
   Download,
   ImagePlus,
   Move,
+  RotateCcw,
   Share2,
 } from "lucide-react";
 
 import TemplateArtwork from "./TemplateArtwork";
-import { getTemplatePhotoAdjustment } from "./templateData";
+import {
+  getTemplatePhotoAdjustment,
+  getTemplatePhotoSlot,
+} from "./templateData";
 
 const SAVED_TEMPLATE_KEY = "kushi-saved-templates";
 const SAVED_CREATION_KEY = "kushi-personalized-creations";
@@ -28,10 +32,12 @@ const isTemplateSaved = (templateId) =>
   Boolean(templateId && readStoredArray(SAVED_TEMPLATE_KEY).includes(templateId));
 
 const clamp = (value) => Math.min(100, Math.max(0, value));
+const clampZoom = (value) => Math.min(3, Math.max(1, value));
 
 const TemplatePreview = ({
   template,
   userPhoto = "",
+  userCutoutPhoto = "",
   userName = "",
   photoAdjustment = {},
   onPhotoAdjustmentChange,
@@ -45,6 +51,7 @@ const TemplatePreview = ({
   const suppressClickRef = useRef(false);
   const [isSaved, setIsSaved] = useState(() => isTemplateSaved(template?.id));
   const [isAdjusting, setIsAdjusting] = useState(false);
+  const [isUpdatingPhoto, setIsUpdatingPhoto] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [shareFeedback, setShareFeedback] = useState("");
   const [photoFeedback, setPhotoFeedback] = useState("");
@@ -58,6 +65,13 @@ const TemplatePreview = ({
     template,
     photoAdjustment,
   );
+
+  const updatePhotoAdjustment = (nextAdjustment) => {
+    onPhotoAdjustmentChange?.({
+      ...currentAdjustment,
+      ...nextAdjustment,
+    });
+  };
 
   const makePreviewPng = async (targetWidth = template.canvas?.width || 1080) => {
     const node = artworkRef.current;
@@ -186,7 +200,7 @@ const TemplatePreview = ({
     window.setTimeout(() => setShareFeedback(""), 1800);
   };
 
-  const handlePhotoInputChange = (event) => {
+  const handlePhotoInputChange = async (event) => {
     const file = event.target.files?.[0];
 
     if (!file) {
@@ -207,9 +221,28 @@ const TemplatePreview = ({
       return;
     }
 
-    onPhotoChange?.(file);
-    setPhotoFeedback("Photo updated for this design only.");
-    event.target.value = "";
+    const isCutout = getTemplatePhotoSlot(template).mode === "cutout";
+
+    setIsUpdatingPhoto(true);
+    setPhotoFeedback(
+      isCutout ? "Removing the background securely…" : "Updating photo…",
+    );
+
+    try {
+      await onPhotoChange?.(file);
+      setPhotoFeedback(
+        isCutout
+          ? "Transparent photo updated for this design only."
+          : "Photo updated for this design only.",
+      );
+    } catch (error) {
+      setPhotoFeedback(
+        error?.message || "The photo could not be updated. Try again.",
+      );
+    } finally {
+      setIsUpdatingPhoto(false);
+      event.target.value = "";
+    }
   };
 
   const handlePhotoPointerDown = (event) => {
@@ -244,7 +277,7 @@ const TemplatePreview = ({
       suppressClickRef.current = true;
     }
 
-    onPhotoAdjustmentChange?.({
+    updatePhotoAdjustment({
       objectPositionX: clamp(drag.objectPositionX - (deltaX / drag.width) * 100),
       objectPositionY: clamp(drag.objectPositionY - (deltaY / drag.height) * 100),
     });
@@ -269,6 +302,10 @@ const TemplatePreview = ({
     }
 
     setIsAdjusting((current) => !current);
+  };
+
+  const handleResetPhotoPosition = () => {
+    onPhotoAdjustmentChange?.(getTemplatePhotoAdjustment(template));
   };
 
   return (
@@ -296,11 +333,13 @@ const TemplatePreview = ({
           <TemplateArtwork
             template={template}
             userPhoto={userPhoto}
+            userCutoutPhoto={userCutoutPhoto}
             userName={userName}
             photoAdjustment={currentAdjustment}
             artworkRef={artworkRef}
             interactivePhoto
             isAdjusting={isAdjusting}
+            photoSelected={isAdjusting}
             onPhotoClick={handlePhotoClick}
             onPhotoPointerDown={handlePhotoPointerDown}
             onPhotoPointerMove={handlePhotoPointerMove}
@@ -347,8 +386,10 @@ const TemplatePreview = ({
               type="button"
               className="kushi-template-preview__simple-edit"
               onClick={() => photoInputRef.current?.click()}
+              disabled={isUpdatingPhoto}
             >
-              <ImagePlus size={18} /> Change Photo
+              <ImagePlus size={18} />
+              {isUpdatingPhoto ? "Processing…" : "Change Photo"}
             </button>
 
             <button
@@ -363,6 +404,57 @@ const TemplatePreview = ({
               {isAdjusting ? "Done Adjusting" : "Adjust Photo Position"}
             </button>
           </div>
+
+          {isAdjusting && userPhoto && (
+            <div className="kushi-template-preview__photo-adjustments">
+              <label>
+                Horizontal: {Math.round(currentAdjustment.objectPositionX)}%
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={currentAdjustment.objectPositionX}
+                  onChange={(event) =>
+                    updatePhotoAdjustment({
+                      objectPositionX: Number(event.target.value),
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Vertical: {Math.round(currentAdjustment.objectPositionY)}%
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={currentAdjustment.objectPositionY}
+                  onChange={(event) =>
+                    updatePhotoAdjustment({
+                      objectPositionY: Number(event.target.value),
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Zoom: {currentAdjustment.zoom.toFixed(2)}×
+                <input
+                  type="range"
+                  min="1"
+                  max="3"
+                  step="0.05"
+                  value={currentAdjustment.zoom}
+                  onChange={(event) =>
+                    updatePhotoAdjustment({
+                      zoom: clampZoom(Number(event.target.value)),
+                    })
+                  }
+                />
+              </label>
+              <button type="button" onClick={handleResetPhotoPosition}>
+                <RotateCcw size={15} /> Reset Photo Position
+              </button>
+            </div>
+          )}
 
           {photoFeedback && (
             <p className="kushi-template-preview__photo-feedback" role="status">

@@ -5,6 +5,7 @@ function TemplateGrid({
   onSelectTemplate,
   selectedTemplateId,
   profilePhotoUrl = "",
+  profileCutoutUrl = "",
   profileFullName = "",
   photoOverrides = {},
   photoAdjustments = {},
@@ -26,6 +27,9 @@ function TemplateGrid({
           onSelect={onSelectTemplate}
           isSelected={selectedTemplateId === template.id}
           userPhoto={photoOverrides[template.id] || profilePhotoUrl}
+          userCutoutPhoto={
+            photoOverrides[template.id] ? "" : profileCutoutUrl
+          }
           userName={profileFullName}
           photoAdjustment={photoAdjustments[template.id]}
         />

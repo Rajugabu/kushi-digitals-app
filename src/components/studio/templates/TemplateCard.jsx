@@ -5,6 +5,7 @@ const TemplateCard = ({
   onSelect,
   isSelected = false,
   userPhoto = "",
+  userCutoutPhoto = "",
   userName = "",
   photoAdjustment = {},
 }) => {
@@ -28,6 +29,7 @@ const TemplateCard = ({
         <TemplateArtwork
           template={template}
           userPhoto={userPhoto}
+          userCutoutPhoto={userCutoutPhoto}
           userName={userName}
           photoAdjustment={photoAdjustment}
           compact
