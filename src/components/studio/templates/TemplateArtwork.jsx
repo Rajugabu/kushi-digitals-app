@@ -36,28 +36,86 @@ function TemplateArtwork({
 
   const accent = template.accentColor || "#D4AF37";
   const photoSlot = getTemplatePhotoSlot(template);
+
+  /*
+   * Legacy safety only:
+   * Normal / Free Photo is being removed from the Admin UI,
+   * but old saved templates may still contain one of these modes.
+   */
+  const isLegacyFreePhotoMode =
+    photoSlot.mode === "normal" ||
+    photoSlot.mode === "free" ||
+    photoSlot.mode === "free-photo";
+
+  /*
+   * Feather and Cutout must look like direct photos on the design:
+   * no visible box, border, outline, background, or frame.
+   *
+   * Feather still keeps its directional alpha mask.
+   * Cutout still uses the transparent Photoroom result.
+   */
+  const isBorderlessPhotoMode =
+    isLegacyFreePhotoMode ||
+    photoSlot.mode === "feather" ||
+    photoSlot.mode === "cutout";
+
+  /*
+   * Do not show the rectangular selection outline for borderless modes.
+   * Admin can still drag/resize through the existing editor controls
+   * and resize handle.
+   */
+  const showVisibleFrameSelection =
+    showSelectionUi && !isBorderlessPhotoMode;
+
   const renderedUserPhoto =
     photoSlot.mode === "cutout" && userCutoutPhoto
       ? userCutoutPhoto
       : userPhoto;
+
   const nameSlot = getTemplateNameSlot(template);
+
   const nameFontSize = String(nameSlot.fontSize).endsWith("%")
     ? `${String(nameSlot.fontSize).slice(0, -1)}cqw`
     : nameSlot.fontSize;
-  const adjustment = getTemplatePhotoAdjustment(template, photoAdjustment);
+
+  const adjustment = getTemplatePhotoAdjustment(
+    template,
+    photoAdjustment,
+  );
+
   const textLayout = template.textLayout || {};
   const textAlign = textLayout.align || "center";
-  const canvas = template.canvas || { width: 1080, height: 1350 };
+  const canvas = template.canvas || {
+    width: 1080,
+    height: 1350,
+  };
+
   const showFallbackArtwork = Boolean(
-    !renderedUserPhoto && (template.previewImage || template.thumbnail),
+    !renderedUserPhoto &&
+      (template.previewImage || template.thumbnail),
   );
+
+  /*
+   * IMPORTANT:
+   * Feather must KEEP getTemplatePhotoMaskStyle(photoSlot),
+   * otherwise directional feather will stop working.
+   *
+   * Only legacy Normal/Free bypasses masks completely.
+   */
+  const photoMaskStyle = isLegacyFreePhotoMode
+    ? {}
+    : getTemplatePhotoMaskStyle(photoSlot);
 
   return (
     <div
       ref={artworkRef}
-      className={`kushi-template-artwork ${compact ? "is-compact" : ""}`}
+      className={`kushi-template-artwork ${
+        compact ? "is-compact" : ""
+      }`}
       style={{
-        aspectRatio: `${canvas.width || 1080} / ${canvas.height || 1350}`,
+        aspectRatio: `${canvas.width || 1080} / ${
+          canvas.height || 1350
+        }`,
         ...getTemplateBackgroundStyle(template),
       }}
       data-template-id={template.id}
@@ -72,43 +130,80 @@ function TemplateArtwork({
         />
       ) : (
         <>
-          {(template.decorations || []).map((decoration, index) => {
-            const isHalo = decoration.type === "halo";
+          {(template.decorations || []).map(
+            (decoration, index) => {
+              const isHalo = decoration.type === "halo";
 
-            return (
-              <span
-                key={`${decoration.type}-${index}`}
-                className="kushi-template-artwork__decoration"
-                aria-hidden="true"
-                style={{
-                  width: isHalo ? "62%" : "48%",
-                  background: decoration.color || accent,
-                  opacity: isHalo ? 0.15 : 0.18,
-                  filter: isHalo ? "blur(58px)" : "blur(72px)",
-                  ...getTemplateDecorationPosition(decoration.position),
-                }}
-              />
-            );
-          })}
+              return (
+                <span
+                  key={`${decoration.type}-${index}`}
+                  className="kushi-template-artwork__decoration"
+                  aria-hidden="true"
+                  style={{
+                    width: isHalo ? "62%" : "48%",
+                    background: decoration.color || accent,
+                    opacity: isHalo ? 0.15 : 0.18,
+                    filter: isHalo
+                      ? "blur(58px)"
+                      : "blur(72px)",
+                    ...getTemplateDecorationPosition(
+                      decoration.position,
+                    ),
+                  }}
+                />
+              );
+            },
+          )}
 
           {photoSlot.enabled && (
             <div
               className={`kushi-template-artwork__photo ${
                 interactivePhoto ? "is-interactive" : ""
-              } ${showSelectionUi ? "has-selection-ui" : ""} ${
-                showSelectionUi && isAdjusting ? "is-adjusting" : ""
-              } ${showSelectionUi && slotEditing ? "is-frame-editing" : ""
-              } ${showSelectionUi && photoSelected ? "is-selected" : ""}`}
+              } ${
+                isBorderlessPhotoMode
+                  ? "is-borderless-photo"
+                  : ""
+              } ${
+                showVisibleFrameSelection
+                  ? "has-selection-ui"
+                  : ""
+              } ${
+                showVisibleFrameSelection && isAdjusting
+                  ? "is-adjusting"
+                  : ""
+              } ${
+                showVisibleFrameSelection && slotEditing
+                  ? "is-frame-editing"
+                  : ""
+              } ${
+                showVisibleFrameSelection && photoSelected
+                  ? "is-selected"
+                  : ""
+              }`}
               style={{
                 zIndex:
-                  showSelectionUi && (slotEditing || isAdjusting)
+                  showSelectionUi &&
+                  (slotEditing || isAdjusting)
                     ? Math.max(photoSlot.zIndex, 10)
                     : photoSlot.zIndex,
+
                 top: photoSlot.top,
                 left: photoSlot.left,
                 width: photoSlot.width,
                 height: photoSlot.height,
-                borderRadius: photoSlot.borderRadius,
+
+                borderRadius: isBorderlessPhotoMode
+                  ? "0px"
+                  : photoSlot.borderRadius,
+
+                ...(isBorderlessPhotoMode
+                  ? {
+                      border: "none",
+                      outline: "none",
+                      boxShadow: "none",
+                      background: "transparent",
+                    }
+                  : {}),
               }}
               role={interactivePhoto ? "button" : undefined}
               tabIndex={interactivePhoto ? 0 : undefined}
@@ -118,15 +213,20 @@ function TemplateArtwork({
                     ? "Drag to adjust photo position"
                     : slotEditing
                       ? "Drag to move the selected photo frame"
-                    : "Select photo controls"
+                      : "Select photo controls"
                   : undefined
               }
               data-photo-mode={photoSlot.mode}
-              onClick={interactivePhoto ? onPhotoClick : undefined}
+              onClick={
+                interactivePhoto ? onPhotoClick : undefined
+              }
               onKeyDown={
                 interactivePhoto
                   ? (event) => {
-                      if (event.key === "Enter" || event.key === " ") {
+                      if (
+                        event.key === "Enter" ||
+                        event.key === " "
+                      ) {
                         event.preventDefault();
                         onPhotoClick?.(event);
                       }
@@ -134,21 +234,56 @@ function TemplateArtwork({
                   : undefined
               }
               onPointerDown={
-                isAdjusting || slotEditing ? onPhotoPointerDown : undefined
+                isAdjusting || slotEditing
+                  ? onPhotoPointerDown
+                  : undefined
               }
               onPointerMove={
-                isAdjusting || slotEditing ? onPhotoPointerMove : undefined
+                isAdjusting || slotEditing
+                  ? onPhotoPointerMove
+                  : undefined
               }
               onPointerUp={
-                isAdjusting || slotEditing ? onPhotoPointerUp : undefined
+                isAdjusting || slotEditing
+                  ? onPhotoPointerUp
+                  : undefined
               }
               onPointerCancel={
-                isAdjusting || slotEditing ? onPhotoPointerUp : undefined
+                isAdjusting || slotEditing
+                  ? onPhotoPointerUp
+                  : undefined
               }
             >
               <div
-                className="kushi-template-artwork__photo-visual"
-                style={getTemplatePhotoMaskStyle(photoSlot)}
+                className={`kushi-template-artwork__photo-visual ${
+                  isBorderlessPhotoMode
+                    ? "is-borderless-photo"
+                    : ""
+                }`}
+                style={{
+                  ...photoMaskStyle,
+
+                  ...(isBorderlessPhotoMode
+                    ? {
+                        border: "none",
+                        outline: "none",
+                        boxShadow: "none",
+                        background: "transparent",
+                        borderRadius: "0px",
+                      }
+                    : {}),
+
+                  /*
+                   * Do NOT clear maskImage for Feather.
+                   * Its directional mask is intentionally preserved.
+                   */
+                  ...(isLegacyFreePhotoMode
+                    ? {
+                        WebkitMaskImage: "none",
+                        maskImage: "none",
+                      }
+                    : {}),
+                }}
               >
                 {renderedUserPhoto ? (
                   <img
@@ -162,12 +297,24 @@ function TemplateArtwork({
                       objectPosition: `${adjustment.objectPositionX}% ${adjustment.objectPositionY}%`,
                       transform: `scale(${adjustment.zoom})`,
                       transformOrigin: `${adjustment.objectPositionX}% ${adjustment.objectPositionY}%`,
+
+                      ...(isBorderlessPhotoMode
+                        ? {
+                            border: "none",
+                            outline: "none",
+                            boxShadow: "none",
+                            background: "transparent",
+                            borderRadius: "0px",
+                          }
+                        : {}),
                     }}
                   />
                 ) : (
                   <span className="kushi-template-artwork__empty-photo">
                     <ImagePlus size={compact ? 18 : 28} />
-                    {!compact && <small>Add your photo</small>}
+                    {!compact && (
+                      <small>Add your photo</small>
+                    )}
                   </span>
                 )}
               </div>
@@ -228,14 +375,16 @@ function TemplateArtwork({
                   width: textLayout.message?.width || "76%",
                 }}
               >
-                {template.defaultMessage || "Create. Personalize. Share."}
+                {template.defaultMessage ||
+                  "Create. Personalize. Share."}
               </p>
 
               {(!userName || !nameSlot.enabled) && (
                 <small
                   style={{
                     left: textLayout.brand?.left || "10%",
-                    bottom: textLayout.brand?.bottom || "4%",
+                    bottom:
+                      textLayout.brand?.bottom || "4%",
                     width: textLayout.brand?.width || "80%",
                     color: accent,
                   }}
@@ -252,7 +401,9 @@ function TemplateArtwork({
               style={{
                 zIndex: nameSlot.zIndex,
                 top: nameSlot.top,
-                bottom: nameSlot.top ? undefined : nameSlot.bottom,
+                bottom: nameSlot.top
+                  ? undefined
+                  : nameSlot.bottom,
                 left: nameSlot.left,
                 width: nameSlot.width,
                 textAlign: nameSlot.textAlign,
