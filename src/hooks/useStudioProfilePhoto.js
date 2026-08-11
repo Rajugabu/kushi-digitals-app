@@ -10,15 +10,9 @@ const isMissingSessionError = (error) =>
   error?.message?.toLowerCase().includes("auth session missing");
 
 function useStudioProfilePhoto() {
-  const [profilePhotoUrl, setProfilePhotoUrl] =
-    useState("");
-
-  const [profilePhotoLoading, setProfilePhotoLoading] =
-    useState(true);
-
-  const [profilePhotoError, setProfilePhotoError] =
-    useState("");
-
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState("");
+  const [profilePhotoLoading, setProfilePhotoLoading] = useState(true);
+  const [profilePhotoError, setProfilePhotoError] = useState("");
   const [profileFullName, setProfileFullName] = useState("");
   const [profileAvatarPath, setProfileAvatarPath] = useState("");
   const [profileUserId, setProfileUserId] = useState("");
@@ -44,6 +38,7 @@ function useStudioProfilePhoto() {
         return;
       }
 
+      loadedUserIdRef.current = null;
       setProfilePhotoUrl("");
       setProfileFullName("");
       setProfileAvatarPath("");
@@ -58,6 +53,11 @@ function useStudioProfilePhoto() {
     ) => {
       const userId = user?.id || null;
 
+      if (!userId) {
+        clearProfilePhoto();
+        return;
+      }
+
       if (
         !force &&
         loadedUserIdRef.current === userId
@@ -70,11 +70,6 @@ function useStudioProfilePhoto() {
       const currentRequestId = ++requestId;
 
       clearRefreshTimer();
-
-      if (!userId) {
-        clearProfilePhoto();
-        return;
-      }
 
       if (isMounted) {
         setProfilePhotoLoading(true);
@@ -99,7 +94,7 @@ function useStudioProfilePhoto() {
 
         if (profile?.avatar_path) {
           const {
-            data,
+            data: signedAvatar,
             error: signedUrlError,
           } = await supabase.storage
             .from("profile-photos")
@@ -112,8 +107,7 @@ function useStudioProfilePhoto() {
             throw signedUrlError;
           }
 
-          signedUrl =
-            data?.signedUrl || "";
+          signedUrl = signedAvatar?.signedUrl || "";
         }
 
         if (
@@ -135,20 +129,12 @@ function useStudioProfilePhoto() {
         setProfilePhotoError("");
         setProfilePhotoLoading(false);
 
-        /*
-         * Signed URL lasts 60 minutes.
-         * Refresh it a few minutes before expiry so
-         * template cards do not suddenly lose the photo.
-         */
         if (signedUrl) {
-          refreshTimer =
-            window.setTimeout(() => {
-              if (isMounted) {
-                loadForUser(user, {
-                  force: true,
-                });
-              }
-            }, SIGNED_URL_REFRESH_MS);
+          refreshTimer = window.setTimeout(() => {
+            if (isMounted) {
+              loadForUser(user, { force: true });
+            }
+          }, SIGNED_URL_REFRESH_MS);
         }
       } catch (error) {
         if (
@@ -160,7 +146,7 @@ function useStudioProfilePhoto() {
 
         setProfilePhotoUrl("");
         setProfileAvatarPath("");
-        setProfileUserId(userId || "");
+        setProfileUserId(userId);
         setProfileFullName(
           user?.user_metadata?.full_name ||
             user?.user_metadata?.name ||
@@ -181,12 +167,8 @@ function useStudioProfilePhoto() {
     };
 
     /*
-     * IMPORTANT:
-     * Subscribe first so we do not miss Supabase's
-     * INITIAL_SESSION event during page refresh / Vite HMR.
-     *
-     * The old hook ignored INITIAL_SESSION. That could leave
-     * profilePhotoUrl empty even though the user was logged in.
+     * Subscribe first so INITIAL_SESSION / SIGNED_IN cannot be missed.
+     * Studio must reload the profile when authentication is restored.
      */
     const {
       data: { subscription },
@@ -198,31 +180,36 @@ function useStudioProfilePhoto() {
           }
 
           if (event === "SIGNED_OUT") {
-            loadedUserIdRef.current = null;
             clearProfilePhoto();
             return;
           }
 
-          loadForUser(
-            session?.user || null,
-            {
-              force:
-                event === "USER_UPDATED",
-            },
-          );
+          const user = session?.user || null;
+
+          if (!user) {
+            return;
+          }
+
+          loadForUser(user, {
+            force:
+              event === "INITIAL_SESSION" ||
+              event === "SIGNED_IN" ||
+              event === "USER_UPDATED",
+          });
         }, 0);
       },
     );
 
     /*
-     * Also load the currently persisted session immediately.
-     * This gives fast results when the user is already signed in.
+     * Use getUser() for the first Studio load.
+     * This mirrors the working Profile page and validates
+     * the current authenticated user before reading profiles.
      */
-    const loadCurrentSession = async () => {
+    const loadCurrentUser = async () => {
       const {
-        data: { session },
+        data: { user },
         error,
-      } = await supabase.auth.getSession();
+      } = await supabase.auth.getUser();
 
       if (error) {
         if (
@@ -239,13 +226,15 @@ function useStudioProfilePhoto() {
         return;
       }
 
-      await loadForUser(
-        session?.user || null,
-        { force: false },
-      );
+      if (!user) {
+        clearProfilePhoto();
+        return;
+      }
+
+      await loadForUser(user, { force: true });
     };
 
-    loadCurrentSession();
+    loadCurrentUser();
 
     return () => {
       isMounted = false;

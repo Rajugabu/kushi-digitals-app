@@ -313,12 +313,14 @@ function Studio() {
   }, [publishedTemplates]);
 
   const hasCutoutTemplates = useMemo(
-    () =>
-      readyMadeTemplates.some(
-        (template) => getTemplatePhotoSlot(template).mode === "cutout",
-      ),
-    [readyMadeTemplates],
-  );
+  () =>
+    readyMadeTemplates.some((template) => {
+      const mode = getTemplatePhotoSlot(template).mode;
+
+      return mode === "cutout" || mode === "feather";
+    }),
+  [readyMadeTemplates],
+);
 
   const profileCutoutUrl =
     profileCutout.sourcePath === profileAvatarPath
@@ -333,11 +335,57 @@ function Studio() {
     let isActive = true;
     let refreshTimer;
 
+    const prepareTemporaryProfileCutout = async () => {
+      const { data: originalPhoto, error: downloadError } =
+        await supabase.storage
+          .from("profile-photos")
+          .download(profileAvatarPath);
+
+      if (downloadError || !originalPhoto) {
+        throw new Error(
+          downloadError?.message ||
+            "Your profile photo could not be opened for background removal.",
+        );
+      }
+
+      const extension =
+        profileAvatarPath.split(".").pop()?.toLowerCase() || "jpg";
+
+      const fallbackTypes = {
+        jpg: "image/jpeg",
+        jpeg: "image/jpeg",
+        png: "image/png",
+        webp: "image/webp",
+      };
+
+      const photoType =
+        originalPhoto.type ||
+        fallbackTypes[extension] ||
+        "image/jpeg";
+
+      const profileFile = new File(
+        [originalPhoto],
+        `profile-photo.${extension}`,
+        { type: photoType },
+      );
+
+      const cutoutFile =
+        await removeStudioPhotoBackground(profileFile);
+
+      return readPhotoAsDataUrl(cutoutFile);
+    };
+
     const loadCutout = async (refresh = false) => {
       try {
-        const result = await getStudioProfileCutout(profileAvatarPath, {
-          refresh,
-        });
+        /*
+         * Preferred path:
+         * use the secure server-side cached profile cutout so the
+         * same avatar does not call Photoroom repeatedly.
+         */
+        const result = await getStudioProfileCutout(
+          profileAvatarPath,
+          { refresh },
+        );
 
         if (!isActive || !result?.signedUrl) {
           return;
@@ -348,12 +396,16 @@ function Studio() {
           signedUrl: result.signedUrl,
         });
 
-        const expiresAt = Date.parse(result.expiresAt || "");
+        const expiresAt = Date.parse(
+          result.expiresAt || "",
+        );
 
         if (Number.isFinite(expiresAt)) {
           const refreshDelay = Math.max(
             60_000,
-            expiresAt - Date.now() - 5 * 60 * 1000,
+            expiresAt -
+              Date.now() -
+              5 * 60 * 1000,
           );
 
           refreshTimer = window.setTimeout(
@@ -361,10 +413,49 @@ function Studio() {
             refreshDelay,
           );
         }
-      } catch (error) {
-        if (isActive) {
-          console.warn("Profile cutout unavailable; using original photo.", error);
-          setProfileCutout({ sourcePath: profileAvatarPath, signedUrl: "" });
+      } catch (cachedCutoutError) {
+        /*
+         * Safety fallback:
+         * If the cached profile-cutout request fails for any reason,
+         * download the authenticated user's own private avatar and run
+         * the already-working temporary Photoroom path once for this
+         * Studio session. This keeps Feather/Cutout automatic instead of
+         * silently showing the original background.
+         */
+        try {
+          const temporaryCutoutUrl =
+            await prepareTemporaryProfileCutout();
+
+          if (!isActive) {
+            return;
+          }
+
+          setProfileCutout({
+            sourcePath: profileAvatarPath,
+            signedUrl: temporaryCutoutUrl,
+          });
+
+          console.warn(
+            "Cached profile cutout was unavailable; temporary automatic cutout is being used.",
+            cachedCutoutError,
+          );
+        } catch (fallbackError) {
+          if (!isActive) {
+            return;
+          }
+
+          console.warn(
+            "Automatic profile background removal failed.",
+            {
+              cachedCutoutError,
+              fallbackError,
+            },
+          );
+
+          setProfileCutout({
+            sourcePath: profileAvatarPath,
+            signedUrl: "",
+          });
         }
       }
     };
@@ -375,7 +466,10 @@ function Studio() {
       isActive = false;
       window.clearTimeout(refreshTimer);
     };
-  }, [hasCutoutTemplates, profileAvatarPath]);
+  }, [
+    hasCutoutTemplates,
+    profileAvatarPath,
+  ]);
 
   const availableUserTemplates = useMemo(
     () => [...readyMadeTemplates, ...createBackgrounds],
@@ -601,9 +695,9 @@ function Studio() {
     }
 
     const renderedFile =
-      photoMode === "cutout"
-        ? await removeStudioPhotoBackground(file)
-        : file;
+  photoMode === "cutout" || photoMode === "feather"
+    ? await removeStudioPhotoBackground(file)
+    : file;
     const dataUrl = await readPhotoAsDataUrl(renderedFile);
 
     setTemplatePhotoOverrides((current) => ({

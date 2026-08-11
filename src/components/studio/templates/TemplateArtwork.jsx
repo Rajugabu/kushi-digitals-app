@@ -68,7 +68,8 @@ function TemplateArtwork({
     showSelectionUi && !isBorderlessPhotoMode;
 
   const renderedUserPhoto =
-    photoSlot.mode === "cutout" && userCutoutPhoto
+    (photoSlot.mode === "cutout" || photoSlot.mode === "feather") &&
+    userCutoutPhoto
       ? userCutoutPhoto
       : userPhoto;
 
