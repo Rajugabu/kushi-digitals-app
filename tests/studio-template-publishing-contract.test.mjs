@@ -46,6 +46,14 @@ test("admin factory persists drafts and published templates through the service"
   assert.match(factory, /defaultObjectPositionX/);
   assert.match(factory, /defaultObjectPositionY/);
   assert.match(factory, /defaultZoom/);
+  assert.match(factory, /Normal \/ Free Photo/);
+  assert.match(factory, /Directional Feather/);
+  assert.match(factory, /Top Feather/);
+  assert.match(factory, /Right Feather/);
+  assert.match(factory, /Bottom Feather/);
+  assert.match(factory, /Left Feather/);
+  assert.match(factory, /Reset Feather/);
+  assert.match(factory, /showSelectionUi/);
   assert.match(service, /\.from\("studio_templates"\)/);
   assert.match(service, /\.from\(STUDIO_TEMPLATE_ASSET_BUCKET\)/);
 });

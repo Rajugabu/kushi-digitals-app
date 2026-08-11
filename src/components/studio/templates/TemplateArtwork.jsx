@@ -20,6 +20,7 @@ function TemplateArtwork({
   interactivePhoto = false,
   isAdjusting = false,
   photoSelected = false,
+  showSelectionUi = false,
   onPhotoClick,
   onPhotoPointerDown,
   onPhotoPointerMove,
@@ -94,12 +95,13 @@ function TemplateArtwork({
             <div
               className={`kushi-template-artwork__photo ${
                 interactivePhoto ? "is-interactive" : ""
-              } ${isAdjusting ? "is-adjusting" : ""} ${
-                slotEditing ? "is-frame-editing" : ""
-              } ${photoSelected ? "is-selected" : ""}`}
+              } ${showSelectionUi ? "has-selection-ui" : ""} ${
+                showSelectionUi && isAdjusting ? "is-adjusting" : ""
+              } ${showSelectionUi && slotEditing ? "is-frame-editing" : ""
+              } ${showSelectionUi && photoSelected ? "is-selected" : ""}`}
               style={{
                 zIndex:
-                  slotEditing || isAdjusting
+                  showSelectionUi && (slotEditing || isAdjusting)
                     ? Math.max(photoSlot.zIndex, 10)
                     : photoSlot.zIndex,
                 top: photoSlot.top,
@@ -107,7 +109,6 @@ function TemplateArtwork({
                 width: photoSlot.width,
                 height: photoSlot.height,
                 borderRadius: photoSlot.borderRadius,
-                ...getTemplatePhotoMaskStyle(photoSlot),
               }}
               role={interactivePhoto ? "button" : undefined}
               tabIndex={interactivePhoto ? 0 : undefined}
@@ -145,28 +146,33 @@ function TemplateArtwork({
                 isAdjusting || slotEditing ? onPhotoPointerUp : undefined
               }
             >
-              {renderedUserPhoto ? (
-                <img
-                  src={renderedUserPhoto}
-                  alt=""
-                  draggable="false"
-                  loading={compact ? "lazy" : undefined}
-                  decoding="async"
-                  style={{
-                    objectFit: photoSlot.objectFit,
-                    objectPosition: `${adjustment.objectPositionX}% ${adjustment.objectPositionY}%`,
-                    transform: `scale(${adjustment.zoom})`,
-                    transformOrigin: `${adjustment.objectPositionX}% ${adjustment.objectPositionY}%`,
-                  }}
-                />
-              ) : (
-                <span className="kushi-template-artwork__empty-photo">
-                  <ImagePlus size={compact ? 18 : 28} />
-                  {!compact && <small>Add your photo</small>}
-                </span>
-              )}
+              <div
+                className="kushi-template-artwork__photo-visual"
+                style={getTemplatePhotoMaskStyle(photoSlot)}
+              >
+                {renderedUserPhoto ? (
+                  <img
+                    src={renderedUserPhoto}
+                    alt=""
+                    draggable="false"
+                    loading={compact ? "lazy" : undefined}
+                    decoding="async"
+                    style={{
+                      objectFit: photoSlot.objectFit,
+                      objectPosition: `${adjustment.objectPositionX}% ${adjustment.objectPositionY}%`,
+                      transform: `scale(${adjustment.zoom})`,
+                      transformOrigin: `${adjustment.objectPositionX}% ${adjustment.objectPositionY}%`,
+                    }}
+                  />
+                ) : (
+                  <span className="kushi-template-artwork__empty-photo">
+                    <ImagePlus size={compact ? 18 : 28} />
+                    {!compact && <small>Add your photo</small>}
+                  </span>
+                )}
+              </div>
 
-              {slotEditing && (
+              {showSelectionUi && slotEditing && (
                 <span
                   className="kushi-template-artwork__slot-resize"
                   aria-hidden="true"

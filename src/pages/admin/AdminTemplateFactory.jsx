@@ -47,6 +47,13 @@ const categoryOptions = TEMPLATE_FILTERS.filter(
   (filter) => filter.id !== "all" && !filter.type,
 ).map((filter) => filter.id);
 
+const defaultFeatherEdges = {
+  top: 0,
+  right: 20,
+  bottom: 70,
+  left: 20,
+};
+
 const defaultPhotoSlot = {
   enabled: true,
   mode: "circle",
@@ -56,6 +63,7 @@ const defaultPhotoSlot = {
   height: "48%",
   borderRadius: "999px",
   feather: 70,
+  featherEdges: defaultFeatherEdges,
   objectFit: "cover",
   defaultObjectPosition: "50% 50%",
   defaultObjectPositionX: 50,
@@ -83,6 +91,17 @@ const clamp = (value, minimum, maximum) =>
 
 const normalizePhotoSlot = (slot = {}) => {
   const next = { ...defaultPhotoSlot, ...slot };
+  const legacyFeather = clamp(
+    Number(slot.feather ?? defaultPhotoSlot.feather) || 0,
+    0,
+    100,
+  );
+  const featherEdges = {
+    top: clamp(Number(slot.featherEdges?.top ?? legacyFeather), 0, 100),
+    right: clamp(Number(slot.featherEdges?.right ?? legacyFeather), 0, 100),
+    bottom: clamp(Number(slot.featherEdges?.bottom ?? legacyFeather), 0, 100),
+    left: clamp(Number(slot.featherEdges?.left ?? legacyFeather), 0, 100),
+  };
   const match = String(
     slot.defaultObjectPosition || slot.objectPosition || "50% 50%",
   ).match(/(-?\d+(?:\.\d+)?)%?\s+(-?\d+(?:\.\d+)?)%?/);
@@ -99,6 +118,7 @@ const normalizePhotoSlot = (slot = {}) => {
 
   return {
     ...next,
+    featherEdges,
     defaultObjectPosition: `${x}% ${y}%`,
     defaultObjectPositionX: x,
     defaultObjectPositionY: y,
@@ -840,6 +860,28 @@ function AdminTemplateFactory() {
     }));
   };
 
+  const updateFeatherEdge = (edge, value) => {
+    setPhotoSlot((current) => ({
+      ...current,
+      featherEdges: {
+        ...current.featherEdges,
+        [edge]: clamp(value, 0, 100),
+      },
+    }));
+  };
+
+  const resetFeatherEdges = () => {
+    setPhotoSlot((current) => ({
+      ...current,
+      featherEdges: {
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+      },
+    }));
+  };
+
   const handleCopy = async () => {
     await navigator.clipboard.writeText(JSON.stringify(exportConfiguration, null, 2));
     setCopyFeedback("Configuration copied");
@@ -1035,9 +1077,9 @@ function AdminTemplateFactory() {
               </button>
             </div>
 
-            <h3>Shape</h3>
+            <h3>Photo Mode</h3>
             <label>
-              Frame shape
+              Mode
               <select
                 value={photoSlot.mode}
                 onChange={(event) => {
@@ -1078,6 +1120,7 @@ function AdminTemplateFactory() {
                   });
                 }}
               >
+                <option value="normal">Normal / Free Photo</option>
                 <option value="circle">Circle</option>
                 <option value="rounded">Rounded</option>
                 <option value="rectangle">Rectangle</option>
@@ -1195,19 +1238,31 @@ function AdminTemplateFactory() {
               </button>
             </div>
 
-            {(photoSlot.mode === "feather" || photoSlot.mode === "cutout") && (
+            {photoSlot.mode === "feather" && (
               <>
-                <h3>Effects</h3>
-                <NumericRangeControl
-                  label="Feather Strength"
-                  value={photoSlot.feather}
-                  onChange={(value) =>
-                    setPhotoSlot((current) => ({
-                      ...current,
-                      feather: value,
-                    }))
-                  }
-                />
+                <h3>Directional Feather</h3>
+                <div className="admin-template-factory__slider-grid">
+                  {[
+                    ["top", "Top Feather"],
+                    ["right", "Right Feather"],
+                    ["bottom", "Bottom Feather"],
+                    ["left", "Left Feather"],
+                  ].map(([edge, label]) => (
+                    <NumericRangeControl
+                      key={edge}
+                      label={label}
+                      value={photoSlot.featherEdges?.[edge] ?? 0}
+                      onChange={(value) => updateFeatherEdge(edge, value)}
+                    />
+                  ))}
+                  <button
+                    type="button"
+                    className="admin-template-factory__reset-photo"
+                    onClick={resetFeatherEdges}
+                  >
+                    <RotateCcw size={15} /> Reset Feather
+                  </button>
+                </div>
               </>
             )}
 
@@ -1397,6 +1452,7 @@ function AdminTemplateFactory() {
             artworkRef={artworkRef}
             interactivePhoto
             photoSelected={isPhotoSelected}
+            showSelectionUi
             isAdjusting={isPhotoSelected && photoEditorMode === "photo"}
             slotEditing={isPhotoSelected && photoEditorMode === "frame"}
             onPhotoClick={() => setIsPhotoSelected(true)}

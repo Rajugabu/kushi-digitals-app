@@ -152,6 +152,23 @@ export const filterTemplates = (templates, filterId = "all") => {
 const clamp = (value, min, max) =>
   Math.min(max, Math.max(min, value));
 
+const normalizeFeatherValue = (value, fallback = 0) => {
+  const numericValue = Number(value);
+  return clamp(Number.isFinite(numericValue) ? numericValue : fallback, 0, 100);
+};
+
+export const getTemplateFeatherEdges = (photoSlot = {}) => {
+  const legacyFeather = normalizeFeatherValue(photoSlot.feather, 0);
+  const configuredEdges = photoSlot.featherEdges;
+
+  return {
+    top: normalizeFeatherValue(configuredEdges?.top, legacyFeather),
+    right: normalizeFeatherValue(configuredEdges?.right, legacyFeather),
+    bottom: normalizeFeatherValue(configuredEdges?.bottom, legacyFeather),
+    left: normalizeFeatherValue(configuredEdges?.left, legacyFeather),
+  };
+};
+
 export const getTemplatePhotoSlot = (template) => {
   const configuredSlot = template?.photoSlot || {};
   const requestedMode =
@@ -162,6 +179,7 @@ export const getTemplatePhotoSlot = (template) => {
     0,
     100,
   );
+  const featherEdges = getTemplateFeatherEdges(configuredSlot);
   const legacyPosition = String(
     configuredSlot.defaultObjectPosition ||
       configuredSlot.objectPosition ||
@@ -187,7 +205,8 @@ export const getTemplatePhotoSlot = (template) => {
     } else if (
       renderMode === "rectangle" ||
       renderMode === "feather" ||
-      renderMode === "cutout"
+      renderMode === "cutout" ||
+      renderMode === "normal"
     ) {
       borderRadius = "0px";
     } else {
@@ -206,6 +225,7 @@ export const getTemplatePhotoSlot = (template) => {
     renderMode,
     isCutoutFallback: false,
     feather,
+    featherEdges,
     borderRadius,
     objectFit: configuredSlot.objectFit || "cover",
     objectPosition: `${defaultObjectPositionX}% ${defaultObjectPositionY}%`,
@@ -286,14 +306,54 @@ export const getTemplatePhotoMaskStyle = (photoSlot) => {
     return {};
   }
 
-  const feather = clamp(Number(photoSlot.feather) || 65, 0, 100);
-  const solidStop = clamp(82 - feather * 0.55, 25, 76);
-  const softStop = clamp(solidStop + 18, 48, 90);
-  const mask = `radial-gradient(ellipse at center, #000 0%, #000 ${solidStop}%, rgba(0,0,0,0.72) ${softStop}%, transparent 100%)`;
+  const edges = getTemplateFeatherEdges(photoSlot);
+  const fadeDistance = (value) => (value / 100) * 0.45;
+  const gradient = (id, direction, strength) => {
+    const distance = fadeDistance(strength);
+
+    if (distance === 0) {
+      return `<linearGradient id="${id}"><stop offset="0" stop-color="white"/><stop offset="1" stop-color="white"/></linearGradient>`;
+    }
+
+    const solidOffset = (1 - distance).toFixed(4);
+    const fadeOffset = distance.toFixed(4);
+
+    if (direction === "top") {
+      return `<linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="white" stop-opacity="0"/><stop offset="${fadeOffset}" stop-color="white"/><stop offset="1" stop-color="white"/></linearGradient>`;
+    }
+
+    if (direction === "bottom") {
+      return `<linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="white"/><stop offset="${solidOffset}" stop-color="white"/><stop offset="1" stop-color="white" stop-opacity="0"/></linearGradient>`;
+    }
+
+    if (direction === "left") {
+      return `<linearGradient id="${id}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="white" stop-opacity="0"/><stop offset="${fadeOffset}" stop-color="white"/><stop offset="1" stop-color="white"/></linearGradient>`;
+    }
+
+    return `<linearGradient id="${id}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="white"/><stop offset="${solidOffset}" stop-color="white"/><stop offset="1" stop-color="white" stop-opacity="0"/></linearGradient>`;
+  };
+  const svg = [
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" preserveAspectRatio="none">',
+    "<defs>",
+    gradient("top", "top", edges.top),
+    gradient("right", "right", edges.right),
+    gradient("bottom", "bottom", edges.bottom),
+    gradient("left", "left", edges.left),
+    '<mask id="mt" maskUnits="objectBoundingBox" maskContentUnits="objectBoundingBox" mask-type="alpha"><rect width="1" height="1" fill="url(#top)"/></mask>',
+    '<mask id="mr" maskUnits="objectBoundingBox" maskContentUnits="objectBoundingBox" mask-type="alpha"><rect width="1" height="1" fill="url(#right)"/></mask>',
+    '<mask id="mb" maskUnits="objectBoundingBox" maskContentUnits="objectBoundingBox" mask-type="alpha"><rect width="1" height="1" fill="url(#bottom)"/></mask>',
+    '<mask id="ml" maskUnits="objectBoundingBox" maskContentUnits="objectBoundingBox" mask-type="alpha"><rect width="1" height="1" fill="url(#left)"/></mask>',
+    "</defs>",
+    '<g mask="url(#mt)"><g mask="url(#mr)"><g mask="url(#mb)"><rect width="1" height="1" fill="white" mask="url(#ml)"/></g></g></g>',
+    "</svg>",
+  ].join("");
+  const mask = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 
   return {
     WebkitMaskImage: mask,
     maskImage: mask,
+    WebkitMaskMode: "alpha",
+    maskMode: "alpha",
     WebkitMaskRepeat: "no-repeat",
     maskRepeat: "no-repeat",
     WebkitMaskSize: "100% 100%",
