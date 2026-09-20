@@ -13,6 +13,7 @@ import Blog from "./pages/public/Blog";
 import BlogPost from "./pages/public/BlogPost";
 import ComingSoon from "./pages/public/ComingSoon";
 import NotFound from "./pages/public/NotFound";
+import AccountDeletion from "./pages/public/AccountDeletion";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
 import ForgotPassword from "./pages/auth/ForgotPassword";
@@ -66,6 +67,10 @@ function App() {
   path="shipping-policy"
   element={<ShippingPolicy />}
 />
+        <Route
+          path="account-deletion"
+          element={<AccountDeletion />}
+        />
       </Route>
 
       <Route element={<AuthLayout />}>

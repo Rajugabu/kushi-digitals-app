@@ -200,6 +200,10 @@ function Footer() {
   <Link to="/shipping-policy">
     Shipping & Delivery Policy
   </Link>
+
+  <Link to="/account-deletion">
+    Account &amp; Data Deletion
+  </Link>
 </div>
       </div>
     </footer>
