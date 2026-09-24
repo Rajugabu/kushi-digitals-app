@@ -7,7 +7,8 @@ export type StudioStylePreset = {
   id: string;
   mode: GenerationMode;
   photosRequired: 1 | 2;
-  creditCost: 3 | 4;
+  maxPhotos?: 1 | 2;
+  creditCost: 3 | 4 | 5 | 6;
   supportedRatios: string[];
   quality: "low" | "medium" | "high";
   prompt: string;
@@ -132,6 +133,47 @@ function twoImagePreset(
 }
 
 export const STYLE_PRESETS: Record<string, StudioStylePreset> = {
+  "ai-photo-studio": {
+    id: "ai-photo-studio",
+    mode: "single_portrait_style",
+    photosRequired: 1,
+    creditCost: 5,
+    supportedRatios: ["1:1", "4:5", "3:4", "9:16", "2:3", "3:2"],
+    quality: "high",
+    prompt: `${PORTRAIT_IDENTITY_LOCK}\n\nApply the selected AI Photo Studio operation from the custom creation details. Enhance only the requested property or background. For identity-sensitive edits, preserve the exact person, natural anatomy, pose, expression, skin tone, and facial geometry.\n\n${PREMIUM_PORTRAIT_FINISH}`,
+    upscale: "preferred",
+  },
+
+  "poster-studio": {
+    id: "poster-studio",
+    mode: "banner_or_template_style",
+    photosRequired: 1,
+    creditCost: 4,
+    supportedRatios: ["1:1", "4:5", "9:16"],
+    quality: "high",
+    prompt: `${PORTRAIT_IDENTITY_LOCK}\n\nCreate a personalized occasion poster using the selected template direction and custom details. Prioritize clear hierarchy, clean spacing, readable text, and a polished Indian celebration design. Keep the uploaded person recognizable and do not invent facial features.`,
+    upscale: "preferred",
+  },
+
+  "business-studio": {
+    id: "business-studio",
+    mode: "banner_or_template_style",
+    photosRequired: 1,
+    maxPhotos: 2,
+    creditCost: 6,
+    supportedRatios: ["1:1", "4:5", "9:16"],
+    quality: "high",
+    prompt: `Create a professional business promotional design from the supplied business details and reference images.
+
+IMAGE ROLES:
+- Image 1 is the main product, business, or owner visual. Keep it as the primary photographic subject.
+- When Image 2 is supplied, use the image2Role in the custom creation details to determine whether it is a business logo or a secondary business reference.
+- If Image 2 is a logo, reproduce it faithfully as a restrained branding element. Never turn the logo into a person, product, background, or decorative object, and never merge it with the subject in Image 1.
+
+Prioritize readable business name, offer, phone number, clean typography, strong hierarchy, accurate logo placement, professional spacing, and low clutter. Do not use placeholder text, misspellings, watermarks, or decorative elements that reduce readability.`,
+    upscale: "preferred",
+  },
+
   "classic-painting": {
     id: "classic-painting",
     mode: "single_portrait_style",

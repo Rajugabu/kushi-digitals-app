@@ -154,6 +154,14 @@ function rememberPendingGeneration(pending) {
   }
 }
 
+function updatePendingGeneration(updates) {
+  const pending = readPendingGeneration();
+
+  if (pending) {
+    rememberPendingGeneration({ ...pending, ...updates });
+  }
+}
+
 function clearPendingGeneration(generationId) {
   const pending = readPendingGeneration();
 
@@ -267,7 +275,91 @@ async function getGenerationState(generationId) {
   });
 
   if (error) {
-    throw await readFunctionError(error);
+    const functionError = await readFunctionError(error);
+
+    if (functionError.code === "GENERATION_STATUS_UNCONFIRMED") {
+      const { data: generation, error: lookupError } = await supabase
+        .from("studio_generations")
+        .select(
+          "id, style_id, ratio, status, credit_status, error_code, error_message, created_at, updated_at",
+        )
+        .eq("id", generationId)
+        .maybeSingle();
+
+      if (!lookupError) {
+        if (!generation) {
+          return {
+            success: true,
+            generationId,
+            status: "not_found",
+            creditStatus: "not_reserved",
+            source: "database_fallback",
+          };
+        }
+
+        const baseState = {
+          success: generation.status !== "failed",
+          generationId,
+          styleId: generation.style_id,
+          ratio: generation.ratio,
+          creditStatus: generation.credit_status,
+          createdAt: generation.created_at,
+          lastUpdatedAt: generation.updated_at,
+          source: "database_fallback",
+        };
+
+        if (generation.credit_status === "released") {
+          return {
+            ...baseState,
+            success: false,
+            status: "released",
+            code: generation.error_code || "GENERATION_CREDITS_RELEASED",
+            message:
+              "This generation is no longer active, and its reserved credits were released. You can generate again.",
+          };
+        }
+
+        if (generation.status === "failed") {
+          const creditsResolved = [
+            "released",
+            "unreserved",
+            "not_reserved",
+          ].includes(generation.credit_status);
+          const refundPending = !creditsResolved;
+
+          return {
+            ...baseState,
+            status: "failed",
+            code: refundPending
+              ? "STUDIO_CREDIT_REFUND_PENDING"
+              : generation.error_code || "GENERATION_FAILED",
+            creditStatus: refundPending
+              ? "refund_pending"
+              : generation.credit_status,
+            message: refundPending
+              ? "This generation failed, but its reserved credits are still being reconciled."
+              : generation.error_message || "This generation failed safely.",
+          };
+        }
+
+        if (generation.status === "completed") {
+          return {
+            ...baseState,
+            status: "recovering",
+            message:
+              "The image is saved. Secure result links and credit finalization are still being recovered.",
+          };
+        }
+
+        return {
+          ...baseState,
+          status: "processing",
+          message: "The generation is still processing.",
+        };
+      }
+    }
+
+    throw functionError;
   }
 
   return data;
@@ -287,21 +379,47 @@ export async function recoverPendingStudioGeneration(
 
   onStatus?.("recovering");
   const deadline = Date.now() + timeoutMs;
-  let reachedServer = false;
+  let reachedAuthoritativeState = false;
   let latestStatus = "unknown";
+  let latestCreditStatus = null;
 
   do {
+    const currentPending = readPendingGeneration();
+
+    updatePendingGeneration({
+      lastCheckedAt: new Date().toISOString(),
+      checkCount: Number(currentPending?.checkCount || 0) + 1,
+    });
+
     try {
       const state = await getGenerationState(pending.generationId);
-      reachedServer = true;
+      reachedAuthoritativeState = true;
       latestStatus = state?.status || "unknown";
+      latestCreditStatus = state?.creditStatus || null;
+      updatePendingGeneration({
+        lastStatus: latestStatus,
+        lastCreditStatus: latestCreditStatus,
+      });
 
       if (state?.success && state.status === "completed") {
         clearPendingGeneration(pending.generationId);
         return normalizeGenerationResult(state);
       }
 
-      if (state?.status === "failed") {
+      if (state?.status === "not_found") {
+        clearPendingGeneration(pending.generationId);
+        throw new StudioGenerationError(
+          "No server generation was started and no credits were reserved. You can try again.",
+          {
+            code: "GENERATION_NOT_STARTED",
+            retryable: true,
+            generationId: pending.generationId,
+            creditStatus: "not_reserved",
+          },
+        );
+      }
+
+      if (["failed", "released", "stale"].includes(state?.status)) {
         const refundPending = state.creditStatus === "refund_pending";
 
         if (!refundPending) {
@@ -311,7 +429,13 @@ export async function recoverPendingStudioGeneration(
         throw new StudioGenerationError(
           state.message || "This generation failed safely.",
           {
-            code: state.code || "GENERATION_FAILED",
+            code: state.code || (
+              state.status === "stale"
+                ? "GENERATION_STALE"
+                : state.status === "released"
+                  ? "GENERATION_CREDITS_RELEASED"
+                  : "GENERATION_FAILED"
+            ),
             retryable: !refundPending,
             generationId: pending.generationId,
             creditStatus: state.creditStatus,
@@ -328,30 +452,32 @@ export async function recoverPendingStudioGeneration(
       }
     }
 
-    if (Date.now() < deadline) {
+    if (
+      ["processing", "recovering", "unknown"].includes(latestStatus) &&
+      Date.now() < deadline
+    ) {
       await delay(RECOVERY_POLL_INTERVAL_MS);
     }
   } while (Date.now() < deadline);
 
-  if (reachedServer && latestStatus === "not_found") {
-    clearPendingGeneration(pending.generationId);
-    throw new StudioGenerationError(
-      "No server generation was started and no credits were reserved. Check your connection and try again.",
-      { code: "GENERATION_NOT_STARTED", retryable: true },
-    );
-  }
-
   throw new StudioGenerationError(
     latestStatus === "processing"
-      ? "Your generation is still processing. Check its status again in a moment; another generation has not been started."
-      : "The browser still cannot confirm the server result. Check this generation again before starting another one.",
+      ? "Still processing. No new generation or charge was created; check the status again in a moment."
+      : latestStatus === "recovering"
+        ? "Your result exists, but secure delivery and credit reconciliation are still finishing. Check the status again shortly."
+        : "The status service is temporarily unreachable. The saved request remains protected from duplicate charging; check again shortly.",
     {
       code: latestStatus === "processing"
         ? "GENERATION_STILL_PROCESSING"
-        : "GENERATION_STATUS_UNCONFIRMED",
+        : latestStatus === "recovering"
+          ? "GENERATION_RECONCILIATION_PENDING"
+          : reachedAuthoritativeState
+            ? "GENERATION_RECOVERY_FAILED"
+            : "GENERATION_STATUS_UNCONFIRMED",
       retryable: true,
       generationId: pending.generationId,
-      creditStatus: latestStatus === "processing" ? "reserved" : null,
+      creditStatus: latestCreditStatus,
+      refundPending: latestCreditStatus === "refund_pending",
     },
   );
 }
@@ -361,7 +487,7 @@ export async function recoverPendingStudioGeneration(
  * makes retries idempotent, and its pending record survives page refreshes.
  */
 export async function generateStudioDesign(
-  { styleId, ratio, photo1, photo2 },
+  { styleId, ratio, photo1, photo2, context },
   { onStatus } = {},
 ) {
   validateGenerationRequest({ styleId, ratio, photo1, photo2 });
@@ -399,6 +525,10 @@ export async function generateStudioDesign(
 
   if (photo2) {
     formData.append("photo2", photo2, photo2.name);
+  }
+
+  if (context) {
+    formData.append("context", JSON.stringify(context));
   }
 
   onStatus?.("sending");

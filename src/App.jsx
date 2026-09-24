@@ -4,11 +4,11 @@ import PublicLayout from "./layouts/PublicLayout";
 import AuthLayout from "./layouts/AuthLayout";
 import DashboardLayout from "./layouts/DashboardLayout";
 import Home from "./pages/public/Home";
-import Services from "./pages/public/Services";
-import Gallery from "./pages/public/Gallery";
 import About from "./pages/public/About";
 import Contact from "./pages/public/Contact";
-import BookService from "./pages/public/BookService";
+import AiPhotoStudio from "./pages/public/AiPhotoStudio";
+import PosterStudio from "./pages/public/PosterStudio";
+import BusinessStudio from "./pages/public/BusinessStudio";
 import Blog from "./pages/public/Blog";
 import BlogPost from "./pages/public/BlogPost";
 import ComingSoon from "./pages/public/ComingSoon";
@@ -45,12 +45,12 @@ function App() {
     <Routes>
       <Route element={<PublicLayout />}>
         <Route index element={<Home />} />
-        <Route path="services" element={<Services />} />
-        <Route path="gallery" element={<Gallery />} />
+        <Route path="ai-photo-studio" element={<AiPhotoStudio />} />
+        <Route path="poster-studio" element={<PosterStudio />} />
+        <Route path="business-studio" element={<BusinessStudio />} />
         <Route path="studio" element={<Studio />} />
         <Route path="about" element={<About />} />
         <Route path="contact" element={<Contact />} />
-        <Route path="book-service" element={<BookService />} />
         <Route path="blog" element={<Blog />} />
         <Route path="blog/:slug" element={<BlogPost />} />
         <Route path="referral" element={<ComingSoon />} />

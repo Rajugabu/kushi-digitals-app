@@ -10,8 +10,9 @@ import {
 
 const navigationItems = [
   { name: "Home", path: "/" },
-  { name: "Services", path: "/services" },
-  { name: "Gallery", path: "/gallery" },
+  { name: "AI Photo Studio", path: "/ai-photo-studio" },
+  { name: "Poster Studio", path: "/poster-studio" },
+  { name: "Business Studio", path: "/business-studio" },
   { name: "Design Studio", path: "/studio" },
   { name: "About", path: "/about" },
   { name: "Contact", path: "/contact" },
@@ -22,13 +23,9 @@ function Header() {
   const location = useLocation();
 
   useEffect(() => {
-    const closeTimer = window.setTimeout(
-      () => setMenuOpen(false),
-      0,
-    );
+    const closeTimer = window.setTimeout(() => setMenuOpen(false), 0);
 
-    return () =>
-      window.clearTimeout(closeTimer);
+    return () => window.clearTimeout(closeTimer);
   }, [location.pathname]);
 
   useEffect(() => {
@@ -51,9 +48,7 @@ function Header() {
 
           <span className="brand-copy">
             <span className="brand-name">Kushi Digitals</span>
-            <span className="brand-tagline">
-              Premium Service Studio
-            </span>
+            <span className="brand-tagline">AI Creative Studio</span>
           </span>
         </Link>
 
@@ -75,7 +70,7 @@ function Header() {
                 to={item.path}
                 end={item.path === "/"}
                 className={({ isActive }) =>
-                  isActive ? "nav-link active" : "nav-link"
+                  (isActive ? "nav-link active" : "nav-link")
                 }
               >
                 {item.name}
@@ -89,9 +84,9 @@ function Header() {
               <span>Login</span>
             </Link>
 
-            <Link to="/book-service" className="header-cta">
+            <Link to="/ai-photo-studio" className="header-cta">
               <Sparkles size={17} />
-              <span>Book a Service</span>
+              <span>Start Creating</span>
             </Link>
           </div>
         </div>

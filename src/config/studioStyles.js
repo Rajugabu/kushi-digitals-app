@@ -20,6 +20,12 @@ export const STUDIO_CATEGORIES = [
 
 export const STUDIO_CREDIT_INR = 13;
 
+export const AI_STUDIO_CREDIT_COSTS = {
+  aiPhoto: 5,
+  poster: 4,
+  business: 6,
+};
+
 export const OUTPUT_RATIOS = {
   "2:3": {
     id: "2:3",
