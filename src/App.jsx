@@ -1,4 +1,4 @@
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicLayout from "./layouts/PublicLayout";
 import AuthLayout from "./layouts/AuthLayout";
@@ -81,7 +81,9 @@ function App() {
 
       <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/dashboard/orders" element={<Orders />} />
+        <Route path="/dashboard/creations" element={<Orders />} />
+        <Route path="/dashboard/orders"
+          element={<Navigate to="/dashboard/creations" replace />} />
         <Route path="/dashboard/uploads" element={<Photos />} />
         <Route path="/dashboard/profile" element={<Profile />} />
         <Route path="/dashboard/referrals" element={<Referrals />} />

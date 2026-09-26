@@ -3,15 +3,14 @@ import {
   Camera,
   ChevronDown,
   CircleUserRound,
+  Coins,
   Home,
-  Images,
   LayoutDashboard,
   LogOut,
   Menu,
   MessageCircle,
-  PackageCheck,
-  Share2,
-  WalletCards,
+  Sparkles,
+  WandSparkles,
   X,
 } from "lucide-react";
 
@@ -32,29 +31,19 @@ const dashboardLinks = [
     end: true,
   },
   {
-    to: "/dashboard/orders",
+    to: "/dashboard/creations",
     label: "My Creations",
-    icon: PackageCheck,
+    icon: WandSparkles,
   },
   {
-    to: "/dashboard/uploads",
-    label: "Uploaded Photos",
-    icon: Images,
+    to: "/dashboard/wallet",
+    label: "Credits",
+    icon: Coins,
   },
   {
     to: "/dashboard/profile",
     label: "My Profile",
     icon: CircleUserRound,
-  },
-  {
-    to: "/dashboard/referrals",
-    label: "Referrals",
-    icon: Share2,
-  },
-  {
-    to: "/dashboard/wallet",
-    label: "Credits",
-    icon: WalletCards,
   },
   {
     to: "/dashboard/support",
@@ -196,7 +185,7 @@ function DashboardLayout() {
               </span>
 
               <span className="brand-tagline">
-                Customer Dashboard
+                AI Creator Dashboard
               </span>
             </span>
           </Link>
@@ -228,7 +217,7 @@ function DashboardLayout() {
 
         <nav className="dashboard-navigation">
           <span className="dashboard-navigation-label">
-            Customer Menu
+            Creator Menu
           </span>
 
           {dashboardLinks.map((item) => {
@@ -291,10 +280,10 @@ function DashboardLayout() {
             </button>
 
             <div>
-              <span>Customer Portal</span>
+              <span>Kushi Digitals</span>
 
               <strong>
-                Kushi Digitals Dashboard
+                AI Creator Dashboard
               </strong>
             </div>
           </div>
@@ -304,7 +293,7 @@ function DashboardLayout() {
               to="/ai-photo-studio"
               className="dashboard-book-button"
             >
-              <PackageCheck size={18} />
+              <Sparkles size={18} />
               Create with AI
             </Link>
 
@@ -343,13 +332,33 @@ function DashboardLayout() {
                   </div>
 
                   <Link
+                    to="/dashboard/creations"
+                    onClick={() =>
+                      setProfileMenuOpen(false)
+                    }
+                  >
+                    <WandSparkles size={18} />
+                    My Creations
+                  </Link>
+
+                  <Link
+                    to="/dashboard/wallet"
+                    onClick={() =>
+                      setProfileMenuOpen(false)
+                    }
+                  >
+                    <Coins size={18} />
+                    Credits
+                  </Link>
+
+                  <Link
                     to="/dashboard/profile"
                     onClick={() =>
                       setProfileMenuOpen(false)
                     }
                   >
                     <CircleUserRound size={18} />
-                    My Profile
+                    Profile
                   </Link>
 
                   <button
