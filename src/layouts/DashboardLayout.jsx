@@ -33,12 +33,12 @@ const dashboardLinks = [
   },
   {
     to: "/dashboard/orders",
-    label: "My Orders",
+    label: "My Creations",
     icon: PackageCheck,
   },
   {
     to: "/dashboard/uploads",
-    label: "My Photos",
+    label: "Uploaded Photos",
     icon: Images,
   },
   {
@@ -53,7 +53,7 @@ const dashboardLinks = [
   },
   {
     to: "/dashboard/wallet",
-    label: "Wallet",
+    label: "Credits",
     icon: WalletCards,
   },
   {
@@ -301,11 +301,11 @@ function DashboardLayout() {
 
           <div className="dashboard-topbar-actions">
             <Link
-              to="/book-service"
+              to="/ai-photo-studio"
               className="dashboard-book-button"
             >
               <PackageCheck size={18} />
-              Book a Service
+              Create with AI
             </Link>
 
             <div className="dashboard-profile-menu">

@@ -264,11 +264,11 @@ function Dashboard() {
 
           <div className="dashboard-welcome-actions">
             <Link
-              to="/book-service"
+              to="/ai-photo-studio"
               className="primary-button"
             >
               <ImagePlus size={18} />
-              Place New Order
+              Start Creating
               <ArrowRight size={18} />
             </Link>
 
@@ -418,10 +418,10 @@ function Dashboard() {
               </p>
 
               <Link
-                to="/book-service"
+                to="/poster-studio"
                 className="primary-button"
               >
-                Book Your First Service
+                Create Your First Poster
                 <ArrowRight size={17} />
               </Link>
             </div>

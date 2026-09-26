@@ -167,7 +167,7 @@ function About() {
             </span>
 
             <h1 id="about-hero-title">
-              Trusted Services,
+              Creative Tools,
               <span>Handled with Care.</span>
             </h1>
 
@@ -176,22 +176,21 @@ function About() {
             </strong>
 
             <p>
-              Kushi Digitals provides useful photo, printing
-              and online assistance services with clear
-              communication, neat work and dependable customer
-              support.
+              Kushi Digitals is an AI creative studio for polished
+              photos, personalized posters and professional business
+              designs, with clear guidance and dependable support.
             </p>
 
             <div className="about-page-actions">
-              <Link className="primary-button" to="/services">
-                Explore Services
+              <Link className="primary-button" to="/ai-photo-studio">
+                Explore AI Studios
                 <ArrowRight size={18} aria-hidden="true" />
               </Link>
               <Link
                 className="secondary-button"
-                to="/book-service"
+                to="/poster-studio"
               >
-                Book a Service
+                Create a Poster
               </Link>
             </div>
           </div>
@@ -314,11 +313,9 @@ function About() {
                     <h3>{service.title}</h3>
                     <p>{service.homeDescription}</p>
                     <Link
-                      to={`/book-service?service=${encodeURIComponent(
-                        service.name,
-                      )}`}
+                      to="/business-studio"
                     >
-                      Book Service
+                      Create Design
                       <ArrowRight
                         size={16}
                         aria-hidden="true"
@@ -501,9 +498,9 @@ function About() {
           <div className="about-page-gallery-action">
             <Link
               className="secondary-button"
-              to="/gallery"
+              to="/studio"
             >
-              View Gallery
+              Open Design Studio
               <ArrowRight size={18} aria-hidden="true" />
             </Link>
           </div>
@@ -529,9 +526,9 @@ function About() {
             <div className="about-page-actions">
               <Link
                 className="primary-button"
-                to="/book-service"
+                to="/business-studio"
               >
-                Book a Service
+                Create Business Design
                 <ArrowRight size={18} aria-hidden="true" />
               </Link>
               <Link

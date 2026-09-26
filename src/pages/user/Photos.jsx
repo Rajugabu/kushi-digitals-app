@@ -632,11 +632,11 @@ function Photos() {
         </div>
 
         <Link
-          to="/book-service"
+          to="/ai-photo-studio"
           className="primary-button"
         >
           <ImagePlus size={18} />
-          Upload New Photo
+          Create with AI
           <ArrowRight size={18} />
         </Link>
       </section>
@@ -937,7 +937,7 @@ function Photos() {
             </p>
 
             <Link
-              to="/book-service"
+              to="/poster-studio"
               className="primary-button"
             >
               <UploadCloud size={18} />

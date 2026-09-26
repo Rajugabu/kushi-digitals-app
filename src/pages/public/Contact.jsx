@@ -34,7 +34,7 @@ const faqs = [
   {
     question: "Can I book a service online?",
     answer:
-      "Yes. Select Book a Service, choose the required service and submit the details.",
+      "Yes. Choose an AI studio, add your content and generate a design in minutes.",
   },
   {
     question: "Can I upload multiple photos?",
@@ -604,9 +604,9 @@ function Contact() {
                 </button>
                 <Link
                   className="secondary-button"
-                  to="/book-service"
+                  to="/ai-photo-studio"
                 >
-                  Book a Service
+                  Start Creating
                 </Link>
               </div>
             </form>
@@ -746,9 +746,9 @@ function Contact() {
             <div className="contact-page-actions">
               <Link
                 className="primary-button"
-                to="/book-service"
+                to="/business-studio"
               >
-                Book a Service
+                Create Business Design
                 <ArrowRight size={18} aria-hidden="true" />
               </Link>
               <a

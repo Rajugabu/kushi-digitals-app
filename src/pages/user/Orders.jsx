@@ -676,11 +676,11 @@ Please check and guide me.
         </div>
 
         <Link
-          to="/book-service"
+          to="/business-studio"
           className="primary-button"
         >
           <PackageCheck size={18} />
-          Place New Order
+          Create Business Design
           <ArrowRight size={18} />
         </Link>
       </section>
@@ -879,10 +879,10 @@ Please check and guide me.
             </p>
 
             <Link
-              to="/book-service"
+              to="/ai-photo-studio"
               className="primary-button"
             >
-              Book Your First Service
+              Create Your First Photo
               <ArrowRight size={17} />
             </Link>
           </div>

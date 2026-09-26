@@ -591,7 +591,7 @@ function Profile() {
           <p>
             Save your contact and delivery information
             once. It will automatically appear in the
-            Book a Service form.
+            AI creation studio.
           </p>
         </div>
 
