@@ -35,6 +35,7 @@ import AdminBlogEditor from "./pages/admin/AdminBlogEditor";
 import AdminBlogPreview from "./pages/admin/AdminBlogPreview";
 import AdminTemplateFactory from "./pages/admin/AdminTemplateFactory";
 import Studio from "./pages/Studio";
+import Live from "./pages/public/Live";
 import PrivacyPolicy from "./pages/public/PrivacyPolicy";
 import Terms from "./pages/public/Terms";
 import RefundPolicy from "./pages/public/RefundPolicy";
@@ -44,6 +45,7 @@ function App() {
   return (
     <Routes>
       <Route element={<PublicLayout />}>
+        <Route path="live" element={<Live />} />
         <Route index element={<Home />} />
         <Route path="ai-photo-studio" element={<AiPhotoStudio />} />
         <Route path="poster-studio" element={<PosterStudio />} />
@@ -110,3 +112,4 @@ function App() {
 }
 
 export default App;
+

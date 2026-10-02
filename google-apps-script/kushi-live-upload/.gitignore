@@ -1,0 +1,3 @@
+# Owner configuration / OAuth and local deployment state must never be committed.
+*.local.json
+.clasprc.json
