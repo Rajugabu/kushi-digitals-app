@@ -13,8 +13,14 @@ function youtubeUrl_(value) {
   return /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(value || '') ? value : '';
 }
 
-function text_(value, max, required) {
-  if (typeof value !== 'string' || value.length > max || (required && !value.trim())) throw new Error('INVALID');
+function invalid_(field) {
+  const error = new Error('INVALID');
+  error.field = field;
+  throw error;
+}
+
+function text_(value, max, required, field) {
+  if (typeof value !== 'string' || value.length > max || (required && !value.trim())) invalid_(field);
   // Plain text only, also neutralize spreadsheet formula injection.
   return "'" + value.trim().replace(/[<>\u0000-\u001f\u007f]/g, '');
 }
@@ -105,12 +111,16 @@ function submitPhoto(form) {
   let file;
   let committed = false;
   try {
-    if (!form || form.website || form.consent !== 'yes' || !/^[a-f0-9-]{36}$/.test(form.requestId || '') || !/^[a-f0-9-]{36}$/.test(form.clientId || '')) throw new Error('INVALID');
-    if (Object.keys(form).filter(function(key) { return form[key] && typeof form[key].getBytes === 'function'; }).length !== 1) throw new Error('INVALID');
-    const name = text_(form.viewerName, 80, true);
-    const youtubeName = text_(form.youtubeName, 100, true);
-    const special = text_(form.specialRequest, 500, false);
-    if (EDIT_TYPES.indexOf(form.editingType) < 0) throw new Error('INVALID');
+    if (!form) invalid_('form');
+    if (form.website) invalid_('website');
+    if (form.consent !== 'yes') invalid_('consent');
+    if (!/^[a-f0-9-]{36}$/.test(form.requestId || '')) invalid_('requestId');
+    if (!/^[a-f0-9-]{36}$/.test(form.clientId || '')) invalid_('clientId');
+    if (Object.keys(form).filter(function(key) { return form[key] && typeof form[key].getBytes === 'function'; }).length !== 1) invalid_('photo');
+    const name = text_(form.viewerName, 80, true, 'viewerName');
+    const youtubeName = text_(form.youtubeName, 100, true, 'youtubeName');
+    const special = text_(form.specialRequest, 500, false, 'specialRequest');
+    if (EDIT_TYPES.indexOf(form.editingType) < 0) invalid_('editingType');
     const photo = validatePhoto_(form.photo);
     const props = PropertiesService.getScriptProperties();
     if (props.getProperty('UPLOADS_ENABLED') !== 'true') throw new Error('CLOSED');
@@ -150,6 +160,11 @@ function submitPhoto(form) {
   } catch (err) {
     if (file && !committed) { try { file.setTrashed(true); } catch (_) {} }
     const allowed = ['TYPE','SIZE','INVALID','RATE','CLOSED','BUSY'];
-    return { ok: false, code: allowed.indexOf(err.message) >= 0 ? err.message : 'SERVER' };
+    const result = { ok: false, code: allowed.indexOf(err.message) >= 0 ? err.message : 'SERVER' };
+    if (err.message === 'INVALID' && ['form','website','consent','requestId','clientId','photo','viewerName','youtubeName','specialRequest','editingType'].indexOf(err.field) >= 0) {
+      result.field = err.field; // Field names only; never log submitted values or private IDs.
+      console.warn('KUSHI_LIVE_VALIDATION', err.field);
+    }
+    return result;
   } finally { if (lock && lock.hasLock()) lock.releaseLock(); }
 }

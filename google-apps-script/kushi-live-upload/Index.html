@@ -23,7 +23,9 @@
 </main><script>
 const form = document.getElementById('upload'), photo = document.getElementById('photo');
 const error = document.getElementById('error'), status = document.getElementById('status'), submit = document.getElementById('submit');
-let busy = false, previewUrl = '';
+let busy = false, previewUrl = '', selectedFile = null;
+const invalidFields = {viewerName:'మీ పేరు నమోదు చేయండి.',youtubeName:'YouTube Live Name నమోదు చేయండి.',photo:'Photo మళ్లీ Select చేయండి.',consent:'Photo permission Consent check చేయండి.',specialRequest:'Special request 500 characters కంటే తక్కువగా ఉండాలి.',editingType:'Editing Type Select చేయండి.',requestId:'Page refresh చేసి మళ్లీ Try చేయండి.',clientId:'Page refresh చేసి మళ్లీ Try చేయండి.'};
+function validationFailure(field){console.warn('KUSHI_LIVE_VALIDATION',field);error.textContent=invalidFields[field]||messages.INVALID;}
 const messages = {TYPE:'ఈ File Type Support కాదు. JPG, PNG లేదా WEBP Photo మాత్రమే Upload చేయండి.',SIZE:'Photo Size 15 MB కంటే తక్కువగా ఉండాలి.',INVALID:'మీ పేరు, YouTube పేరు, Photo మరియు Consent check చేయండి.',RATE:'ఒక నిమిషం తర్వాత మరో Photo Upload చేయండి.',CLOSED:'ఇప్పుడు Upload చేయలేకపోతున్నాం. కొద్దిసేపటి తర్వాత మళ్లీ Try చేయండి.',BUSY:'కొద్దిసేపటి తర్వాత మళ్లీ Try చేయండి.',SERVER:'ఇప్పుడు Upload చేయలేకపోతున్నాం. కొద్దిసేపటి తర్వాత మళ్లీ Try చేయండి.'};
 function readSaved(){try{return JSON.parse(sessionStorage.getItem('kushi-live') || 'null');}catch{return null;}}
 function save(value){try{sessionStorage.setItem('kushi-live',JSON.stringify(value));}catch{/* Private browsing may disable storage. */}}
@@ -33,24 +35,24 @@ try{document.getElementById('clientId').value = localStorage.getItem('kushi-live
 const clientId=document.getElementById('clientId').value;
 function showSuccess(result){form.hidden=true;const card=document.getElementById('success');card.hidden=false;document.getElementById('queue').textContent=result.queue;document.getElementById('submission').textContent='Submission ID: '+result.submissionId;card.focus();}
 if(saved && saved.result) showSuccess(saved.result);
-function clearPreview(){if(previewUrl) URL.revokeObjectURL(previewUrl);previewUrl='';document.getElementById('preview').removeAttribute('src');document.getElementById('selection').hidden=true;document.getElementById('selectPhoto').hidden=false;submit.hidden=true;}
+function clearPreview(){if(previewUrl) URL.revokeObjectURL(previewUrl);previewUrl='';selectedFile=null;document.getElementById('preview').removeAttribute('src');document.getElementById('selection').hidden=true;document.getElementById('selectPhoto').hidden=false;submit.hidden=true;}
 function selected(){if(busy)return;error.textContent='';clearPreview();const file=photo.files[0];if(!file)return;
 if(!/^image\/(jpeg|png|webp)$/.test(file.type)||! /\.(jpe?g|png|webp)$/i.test(file.name)){error.textContent=messages.TYPE;photo.value='';return;}
 if(!file.size||file.size>15*1024*1024){error.textContent=messages.SIZE;photo.value='';return;}
-previewUrl=URL.createObjectURL(file);document.getElementById('preview').src=previewUrl;document.getElementById('filename').textContent=file.name+' • '+(file.size/1024/1024).toFixed(2)+' MB';document.getElementById('selection').hidden=false;document.getElementById('selectPhoto').hidden=true;submit.hidden=false;}
+selectedFile=file;previewUrl=URL.createObjectURL(selectedFile);document.getElementById('preview').src=previewUrl;document.getElementById('filename').textContent=file.name+' • '+(file.size/1024/1024).toFixed(2)+' MB';document.getElementById('selection').hidden=false;document.getElementById('selectPhoto').hidden=true;submit.hidden=false;}
 photo.addEventListener('change',selected);
 photo.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();if(!busy)photo.click();}});
 document.getElementById('selectPhoto').onclick=()=>{if(!busy)photo.click();};
 document.getElementById('change').onclick=()=>{if(!busy)photo.click();};
 document.getElementById('remove').onclick=()=>{if(!busy){photo.value='';clearPreview();photo.focus();}};
 const drop=document.getElementById('drop');drop.addEventListener('dragover',e=>e.preventDefault());drop.addEventListener('drop',e=>{e.preventDefault();if(busy)return;if(e.dataTransfer.files.length!==1){error.textContent='ONE Photo మాత్రమే Select చేయండి.';return;}photo.files=e.dataTransfer.files;selected();});
-function unlock(){busy=false;submit.disabled=false;submit.textContent='⬆️ PHOTO UPLOAD చేయండి';status.textContent='';form.removeAttribute('aria-busy');Array.from(form.elements).forEach(el=>{el.disabled=false;});}
-form.addEventListener('submit',e=>{e.preventDefault();if(busy||!form.reportValidity())return;busy=true;error.textContent='';submit.disabled=true;submit.textContent='Uploading Photo...';status.textContent='Uploading Photo... దయచేసి ఈ Page close చేయకండి.';form.setAttribute('aria-busy','true');
+function unlock(){busy=false;submit.disabled=false;submit.textContent='⬆️ PHOTO UPLOAD చేయండి';status.textContent='';form.removeAttribute('aria-busy');form.inert=false;}
+form.addEventListener('submit',e=>{e.preventDefault();if(busy)return;const missing=Array.from(form.elements).find(el=>el.willValidate&&!el.checkValidity());if(missing){validationFailure(missing.name);form.reportValidity();return;}if(!selectedFile||photo.files.length!==1||photo.files[0]!==selectedFile){validationFailure('photo');return;}busy=true;error.textContent='';submit.disabled=true;submit.textContent='Uploading Photo...';status.textContent='Uploading Photo... దయచేసి ఈ Page close చేయకండి.';form.setAttribute('aria-busy','true');form.inert=true;
 save({requestId:document.getElementById('requestId').value});
 // Pass the form as the only argument: Apps Script converts the file input to a Blob.
-google.script.run.withSuccessHandler(result=>{unlock();if(result&&result.ok){save({requestId:result.submissionId,result});clearPreview();showSuccess(result);}else error.textContent=messages[result&&result.code]||messages.SERVER;}).withFailureHandler(()=>{unlock();error.textContent='Upload complete కాలేదు. Internet check చేసి మళ్లీ Try చేయండి. అదే Photoతో మళ్లీ ప్రయత్నించండి.';}).submitPhoto(form);
-// Disable after serialization so all required fields reach the server.
-Array.from(form.elements).forEach(el=>{el.disabled=true;});
+google.script.run.withSuccessHandler(result=>{unlock();if(result&&result.ok){save({requestId:result.submissionId,result});clearPreview();showSuccess(result);}else if(result&&result.code==='INVALID')validationFailure(result.field);else error.textContent=messages[result&&result.code]||messages.SERVER;}).withFailureHandler(()=>{unlock();error.textContent='Upload complete కాలేదు. Internet check చేసి మళ్లీ Try చేయండి. అదే Photoతో మళ్లీ ప్రయత్నించండి.';}).submitPhoto(form);
+// Keep successful controls enabled until the asynchronous form-to-Blob RPC completes.
+// inert locks interaction without excluding fields or the selected File from serialization.
 });
 document.getElementById('again').onclick=()=>{form.reset();clearPreview();document.getElementById('clientId').value=clientId;document.getElementById('requestId').value=crypto.randomUUID();save({requestId:document.getElementById('requestId').value});document.getElementById('success').hidden=true;form.hidden=false;error.textContent='';unlock();document.getElementById('viewerName').focus();};
 </script></body></html>

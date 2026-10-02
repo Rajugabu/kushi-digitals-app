@@ -49,7 +49,35 @@ test('live code has no Supabase storage and preserves existing studio route',()=
   assert.match(app,/path="live" element={<Live \/>}/);assert.match(app,/path="studio"/);
   const html=fs.readFileSync(new URL('../google-apps-script/kushi-live-upload/Index.html',import.meta.url),'utf8');
   new vm.Script(html.match(/<script>([\s\S]*?)<\/script>/)[1]);
-  assert.match(html,/if\(busy\|\|!form.reportValidity\(\)\)return/);assert.match(html,/withFailureHandler/);assert.match(html,/showSuccess\(saved.result\)/);
+  assert.match(html,/form.reportValidity\(\)/);assert.match(html,/withFailureHandler/);assert.match(html,/showSuccess\(saved.result\)/);
+});
+
+test('validation identifies exact field without returning submitted values',()=>{
+  for(const [field,value] of Object.entries({consent:'',requestId:'bad',clientId:'bad',viewerName:'',youtubeName:'',editingType:'bad',specialRequest:'x'.repeat(501),photo:null})) {
+    const h=harness(), result=h.ctx.submitPhoto({...h.form,[field]:value});
+    assert.equal(result.code,'INVALID');assert.equal(result.field,field);assert.equal(h.files.length,0);
+  }
+});
+
+test('asynchronous form serialization retains selected file and required fields until callback',()=>{
+  const html=fs.readFileSync(new URL('../google-apps-script/kushi-live-upload/Index.html',import.meta.url),'utf8');
+  const elements=new Map(), pending=[];
+  const get=id=>{if(!elements.has(id))elements.set(id,{name:id,value:'',files:[],disabled:false,willValidate:false,handlers:{},addEventListener(type,fn){this.handlers[type]=fn;},removeAttribute(){},setAttribute(){},focus(){},reportValidity(){return true;}});return elements.get(id);};
+  const form=get('upload');
+  for(const id of ['viewerName','youtubeName','editingType','specialRequest','requestId','clientId','photo','consent','website','submit'])get(id);
+  form.elements=[...elements.values()].filter(el=>el!==form);
+  let success, failure;
+  const runner={withSuccessHandler(fn){success=fn;return this;},withFailureHandler(fn){failure=fn;return this;},submitPhoto(f){pending.push(()=>Object.fromEntries(f.elements.filter(el=>!el.disabled).map(el=>[el.name,el.name==='photo'?el.files[0]:el.value])));}};
+  const ctx=vm.createContext({document:{getElementById:get},sessionStorage:{getItem:()=>null,setItem(){}},localStorage:{getItem:()=>null,setItem(){}},crypto:{randomUUID:()=> 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'},URL:{createObjectURL:()=> 'blob:test',revokeObjectURL(){}},google:{script:{run:runner}},console:{warn(){}}});
+  vm.runInContext(html.match(/<script>([\s\S]*?)<\/script>/)[1],ctx);
+  get('viewerName').value='Test viewer';get('youtubeName').value='Test channel';get('consent').value='yes';get('editingType').value='Photo Enhance';
+  const file={name:'test.png',type:'image/png',size:1024};get('photo').files=[file];ctx.selected();
+  form.handlers.submit({preventDefault(){}});form.handlers.submit({preventDefault(){}});
+  assert.equal(pending.length,1);assert.equal(form.inert,true);
+  const payload=pending[0]();assert.equal(payload.photo,file);assert.equal(payload.viewerName,'Test viewer');assert.equal(payload.consent,'yes');assert.ok(payload.requestId);assert.ok(payload.clientId);
+  failure();assert.equal(form.inert,false);assert.equal(get('photo').files[0],file);
+  form.handlers.submit({preventDefault(){}});assert.equal(pending.length,2);
+  success({ok:true,queue:'#001',submissionId:payload.requestId});assert.equal(get('queue').textContent,'#001');assert.equal(get('success').hidden,false);
 });
 
 function setupHarness({existingRows=[], header=[], tabExists=true}={}) {
